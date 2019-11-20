@@ -4,6 +4,8 @@
 #include <QThread>
 #include <QtConcurrent>
 
+#include "localmessage.h"
+
 #define SETTINGS_PORT 1011
 #define SETTINGS_IP "192.168.2.1"
 
@@ -20,6 +22,9 @@ void OpenHDSettings::initSettings() {
     connect(settingSocket, SIGNAL(readyRead()), this, SLOT(processDatagrams()));
 
     connect(&timer, &QTimer::timeout, this, &OpenHDSettings::check);
+    connect(&savedTimer, &QTimer::timeout, this, &OpenHDSettings::saveCheck);
+
+
 
     // internal signal from background thread
     connect(this, &OpenHDSettings::savingSettingsStart, this, &OpenHDSettings::_savingSettingsStart);
@@ -36,6 +41,11 @@ void OpenHDSettings::set_saving(bool saving) {
     emit savingChanged(m_saving);
 }
 
+void OpenHDSettings::set_saved(bool saved) {
+    m_saved = saved;
+    emit savedChanged(m_saved);
+}
+
 void OpenHDSettings::check() {
     qint64 current = QDateTime::currentSecsSinceEpoch();
     //fallback in case the ground pi never sends back "ConfigEnd=ConfigEnd"
@@ -43,6 +53,18 @@ void OpenHDSettings::check() {
         timer.stop();
         emit allSettingsChanged(m_allSettings);
         set_loading(false);
+    }
+}
+
+void OpenHDSettings::saveCheck() {
+    qint64 current = QDateTime::currentSecsSinceEpoch();
+    if (settingsCount <= 0) {
+        emit savingSettingsFinish();
+        LocalMessage::instance()->showMessage("settings saved", 3);
+    } else if (current - start > 30) {
+        emit savingSettingsFinish();
+        LocalMessage::instance()->showMessage("%1 settings did not save!", 3);
+        // emit warning for UI display, since timer expired before all settings were saved
     }
 }
 
@@ -72,6 +94,7 @@ void OpenHDSettings::_savingSettingsStart() {
 }
 
 void OpenHDSettings::_savingSettingsFinish() {
+    savedTimer.stop();
     set_saving(false);
 }
 
@@ -114,6 +137,9 @@ void OpenHDSettings::_saveSettings(VMap remoteSettings) {
     }
     set_saving(false);
 
+    // easy way to signal the UI to show a saved message temporarily
+    set_saved(true);
+    savedTimer.start(1000);
     //emit savingSettingsFinish();
 }
 

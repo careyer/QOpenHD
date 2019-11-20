@@ -13,6 +13,7 @@ import "../ui" as Ui
 
 Popup {
     property alias save: groundPiSettingsPanel.save
+    property alias savedCheckmark: groundPiSettingsPanel.savedCheckmark
     property alias settings_popup: settings_popup
     property alias closeButton: closeButton
     property alias rebootButton: rebootButton
