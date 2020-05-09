@@ -3,6 +3,7 @@ import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
 import QtGraphicalEffects 1.12
 import Qt.labs.settings 1.0
+import QtQuick.Shapes 1.0
 
 import OpenHD 1.0
 
@@ -25,15 +26,63 @@ BaseWidget {
     widgetDetailComponent: Column {
         Item {
             width: parent.width
-            height: 24
-            Text { text: "Lat:";  color: "white"; font.bold: true; font.pixelSize: detailPanelFontPixels; anchors.left: parent.left }
-            Text { text: OpenHD.homelat; color: "white"; font.bold: true; font.pixelSize: detailPanelFontPixels; anchors.right: parent.right }
+            height: 32
+            Text { text: "Lat:";  color: "white"; height: parent.height; font.bold: true; font.pixelSize: detailPanelFontPixels; anchors.left: parent.left; verticalAlignment: Text.AlignVCenter }
+            Text { text: Number(OpenHD.homelat).toLocaleString(Qt.locale(), 'f', 6); color: "white"; height: parent.height; font.bold: true; font.pixelSize: detailPanelFontPixels; anchors.right: parent.right; verticalAlignment: Text.AlignVCenter }
         }
         Item {
             width: parent.width
-            height: 24
-            Text { text: "Long:";  color: "white"; font.bold: true; font.pixelSize: detailPanelFontPixels; anchors.left: parent.left }
-            Text { text: OpenHD.homelon; color: "white"; font.bold: true; font.pixelSize: detailPanelFontPixels; anchors.right: parent.right }
+            height: 32
+            Text { text: "Long:";  color: "white"; height: parent.height; font.bold: true; font.pixelSize: detailPanelFontPixels; anchors.left: parent.left; verticalAlignment: Text.AlignVCenter }
+            Text { text: Number(OpenHD.homelat).toLocaleString(Qt.locale(), 'f', 6); color: "white"; height: parent.height; font.bold: true; font.pixelSize: detailPanelFontPixels; anchors.right: parent.right; verticalAlignment: Text.AlignVCenter }
+        }
+
+        Shape {
+            id: line
+            height: 32
+            width: parent.width
+
+            ShapePath {
+                strokeColor: "white"
+                strokeWidth: 2
+                strokeStyle: ShapePath.SolidLine
+                fillColor: "transparent"
+                startX: 0
+                startY: line.height / 2
+                PathLine { x: 0;          y: line.height / 2 }
+                PathLine { x: line.width; y: line.height / 2 }
+            }
+        }
+
+        Item {
+            width: parent.width
+            height: 32
+            Text {
+                id: opacityTitle
+                text: "Opacity"
+                color: "white"
+                height: parent.height
+                font.bold: true
+                font.pixelSize: detailPanelFontPixels
+                anchors.left: parent.left
+                verticalAlignment: Text.AlignVCenter
+            }
+            Slider {
+                id: home_distance_opacity_Slider
+                orientation: Qt.Horizontal
+                from: .1
+                value: settings.home_distance_opacity
+                to: 1
+                stepSize: .1
+                height: parent.height
+                anchors.rightMargin: 0
+                anchors.right: parent.right
+                width: parent.width - 96
+
+                onValueChanged: {
+                    settings.home_distance_opacity = home_distance_opacity_Slider.value
+                }
+            }
         }
     }
 
@@ -48,7 +97,8 @@ BaseWidget {
 
             width: 24
             height: 24
-            color: "#ffffff"
+            color: settings.color_shape
+            opacity: settings.home_distance_opacity
             text: "\uf015"
             anchors.right: home_distance_text.left
             anchors.rightMargin: 6
@@ -63,7 +113,8 @@ BaseWidget {
             id: home_distance_text
             width: 64
             height: 24
-            color: "#ffffff"
+            color: settings.color_text
+            opacity: settings.home_distance_opacity
             // @disable-check M222
             text: {
                 var distance = OpenHD.home_distance;

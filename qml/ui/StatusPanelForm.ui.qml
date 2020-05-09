@@ -8,117 +8,68 @@ import OpenHD 1.0
 
 import "../ui" as Ui
 
-Rectangle {
+import "../ui/elements"
+
+Item {
     id: element2
-    width: 504
-    height: 300
+    Layout.fillHeight: true
+    Layout.fillWidth: true
 
-    GroupBox {
-        title: qsTr("OpenHD Telemetry")
-        id: openhd_box
-
-        width: (parent.width / 2) - 48
+    Text {
+        text: "OpenHD Status Log"
+        font.pixelSize: 16
+        font.bold: true
+        color: "#515151"
 
         anchors.top: parent.top
-        anchors.topMargin: 24
+        anchors.topMargin: 12
         anchors.left: parent.left
         anchors.leftMargin: 24
-
-        background: Rectangle {
-            y: openhd_box.topPadding - openhd_box.bottomPadding
-            width: parent.width
-            height: parent.height - openhd_box.topPadding + openhd_box.bottomPadding
-            color: "transparent"
-            border.color: "black"
-            radius: 2
-        }
-
-        label: Label {
-            x: openhd_box.leftPadding
-            width: openhd_box.availableWidth
-            text: openhd_box.title
-            color: "black"
-            elide: Text.ElideRight
-            font.pixelSize: 12
-        }
-
-        Label {
-            color: "black"
-            text: "last heartbeat: " + (openHDTelemetry.last_heartbeat !== undefined ? openHDTelemetry.last_heartbeat : "N/A")
-            font.pixelSize: 12
-        }
     }
 
-
-    GroupBox {
-        title: qsTr("Mavlink")
-        id: mavlink_box
-
-        width: (parent.width / 2) - 48
+    Rectangle {
+        color: "#ff2a2a2a"
+        border.width: 1
+        border.color: "white"
+        clip: true
 
         anchors.top: parent.top
-        anchors.topMargin: 24
-        anchors.left: openhd_box.right
+        anchors.topMargin: 48
+        anchors.left: parent.left
         anchors.leftMargin: 24
+        anchors.right: parent.right
+        anchors.rightMargin: 24
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 36
 
-        background: Rectangle {
-            y: mavlink_box.topPadding - mavlink_box.bottomPadding
-            width: parent.width
-            height: parent.height - mavlink_box.topPadding + mavlink_box.bottomPadding
-            color: "transparent"
-            border.color: "black"
-            radius: 2
-        }
-
-        label: Label {
-            x: mavlink_box.leftPadding
-            width: mavlink_box.availableWidth
-            text: mavlink_box.title
-            color: "black"
-            elide: Text.ElideRight
-            font.pixelSize: 12
-        }
-
-        Label {
-            color: "black"
-            text: "last heartbeat: " + (mavlinkTelemetry.last_heartbeat !== undefined ? mavlinkTelemetry.last_heartbeat : "N/A")
-            font.pixelSize: 12
+        StatusView {
+            anchors.fill: parent
         }
     }
 
+    Label {
+        id: ohdLabel
+        color: "black"
+        text: "Last openhd heartbeat: " + (OpenHD.last_openhd_heartbeat >= 0 && OpenHD.last_openhd_heartbeat <= 300000 ? OpenHD.last_openhd_heartbeat + "ms" : "N/A")
+        font.pixelSize: 12
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.bottomMargin: 12
+        anchors.leftMargin: 24
 
-    /*
-        Rectangle {
-            id: gamepadRow
-            height: 32
-            Layout.leftMargin: 0
-            width: parent.width
+        z: 1.1
+    }
 
-            Layout.fillWidth: true
-            Layout.rowSpan: 1
-            Layout.columnSpan: 8
+    Label {
+        id: mavLabel
+        color: "black"
+        text: "Last telemetry heartbeat: " + (OpenHD.last_telemetry_heartbeat >= 0 && OpenHD.last_telemetry_heartbeat <= 300000 ? OpenHD.last_telemetry_heartbeat  + "ms": "N/A")
+        font.pixelSize: 12
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
+        anchors.bottomMargin: 12
+        anchors.rightMargin: 142
 
-            Text {
-                id: gamepadText
-                width: 192
-                height: parent.height
-                font.bold: true
-                text: qsTr("Connected gamepad:")
-                anchors.left: parent.left
-                anchors.leftMargin: 12
-                verticalAlignment: Text.AlignVCenter
-            }
-
-            Text {
-                id: gamepadValue
-                width: 128
-                height: parent.height
-                text: OpenHDRC.selectedGamepadName !== undefined ? OpenHDRC.selectedGamepadName : "N/A"
-                horizontalAlignment: Text.AlignRight
-                anchors.rightMargin: 12
-                anchors.right: parent.right
-                elide: Text.ElideRight
-                verticalAlignment: Text.AlignVCenter
-            }
-        }*/
+        z: 1.1
+    }
 }

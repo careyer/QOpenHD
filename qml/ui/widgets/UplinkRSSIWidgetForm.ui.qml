@@ -21,6 +21,40 @@ BaseWidget {
     defaultHCenter: false
     defaultVCenter: false
 
+    hasWidgetDetail: true
+    widgetDetailComponent: Column {
+        Item {
+            width: parent.width
+            height: 32
+            Text {
+                id: opacityTitle
+                text: "Opacity"
+                color: "white"
+                height: parent.height
+                font.bold: true
+                font.pixelSize: detailPanelFontPixels
+                anchors.left: parent.left
+                verticalAlignment: Text.AlignVCenter
+            }
+            Slider {
+                id: uplink_rssi_opacity_Slider
+                orientation: Qt.Horizontal
+                from: .1
+                value: settings.uplink_rssi_opacity
+                to: 1
+                stepSize: .1
+                height: parent.height
+                anchors.rightMargin: 0
+                anchors.right: parent.right
+                width: parent.width - 96
+
+                onValueChanged: {
+                    settings.uplink_rssi_opacity = uplink_rssi_opacity_Slider.value
+                }
+            }
+        }
+    }
+
     Item {
         id: widgetInner
 
@@ -31,7 +65,8 @@ BaseWidget {
             y: 0
             width: 24
             height: 24
-            color: "#ffffff"
+            color: settings.color_shape
+            opacity: settings.uplink_rssi_opacity
             text: "\uf382"
             anchors.right: uplink_rssi.left
             anchors.rightMargin: 0
@@ -51,7 +86,8 @@ BaseWidget {
             y: 0
             width: 32
             height: 24
-            color: "#ffffff"
+            color: settings.color_text
+            opacity: settings.uplink_rssi_opacity
             text: "dBm"
             anchors.right: parent.right
             anchors.rightMargin: 0
@@ -71,8 +107,9 @@ BaseWidget {
             y: 0
             width: 34
             height: 24
-            color: "#ffffff"
-            text: OpenHD.current_signal_joystick_uplink
+            color: settings.color_text
+            opacity: settings.uplink_rssi_opacity
+            text: OpenHD.current_signal_joystick_uplink == -127 ? qsTr("N/A") : OpenHD.current_signal_joystick_uplink
             anchors.right: uplink_dbm.left
             anchors.rightMargin: 2
             anchors.top: parent.top
@@ -91,7 +128,8 @@ BaseWidget {
             y: 0
             width: 64
             height: 24
-            color: "#ffffff"
+            color: settings.color_text
+            opacity: settings.uplink_rssi_opacity
             text: OpenHD.lost_packet_cnt_rc
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 0
@@ -112,7 +150,8 @@ BaseWidget {
             y: 0
             width: 64
             height: 24
-            color: "#ffffff"
+            color: settings.color_text
+            opacity: settings.uplink_rssi_opacity
             text: OpenHD.lost_packet_cnt_telemetry_up
             anchors.bottom: parent.bottom
             anchors.bottomMargin: 0

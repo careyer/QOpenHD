@@ -20,20 +20,17 @@ QOpenHDLink::QOpenHDLink(QObject *parent):
     {
     qDebug() << "QOpenHDLink::QOpenHDLink()";
 
-    init();
-}
-
-
-
-void QOpenHDLink::init() {
 #if defined(ENABLE_LINK)
-    qDebug() << "QOpenHDLink::init()";
-
     linkSocket = new QUdpSocket(this);
     linkSocket->bind(LINK_PORT);
 
     connect(linkSocket, &QUdpSocket::readyRead, this, &QOpenHDLink::readyRead);
 #endif
+}
+
+
+void QOpenHDLink::setGroundIP(QString address) {
+    groundAddress = address;
 }
 
 
@@ -53,6 +50,7 @@ void QOpenHDLink::readyRead() {
 
 void QOpenHDLink::setWidgetLocation(QString widgetName, int alignment, int xOffset, int yOffset, bool hCenter, bool vCenter) {
 #if defined(ENABLE_LINK)
+#if !defined(__rasp_pi__)
     nlohmann::json j = {
       {"cmd", "setWidgetLocation"},
       {"widgetName", widgetName.toStdString()},
@@ -65,13 +63,26 @@ void QOpenHDLink::setWidgetLocation(QString widgetName, int alignment, int xOffs
 
     std::string serialized_string = j.dump();
     auto buf = QByteArray(serialized_string.c_str());
-    if (linkSocket->state() != QUdpSocket::ConnectedState) {
-        linkSocket->connectToHost("192.168.2.1", LINK_PORT);
-    }
-    linkSocket->writeDatagram(buf);
+    linkSocket->writeDatagram(buf, QHostAddress(groundAddress), LINK_PORT);
+#endif
 #endif
 }
 
+void QOpenHDLink::setWidgetEnabled(QString widgetName, bool enabled) {
+#if defined(ENABLE_LINK)
+#if !defined(__rasp_pi__)
+    nlohmann::json j = {
+      {"cmd", "setWidgetEnabled"},
+      {"widgetName", widgetName.toStdString()},
+      {"enabled", enabled}
+    };
+
+    std::string serialized_string = j.dump();
+    auto buf = QByteArray(serialized_string.c_str());
+    linkSocket->writeDatagram(buf, QHostAddress(groundAddress), LINK_PORT);
+#endif
+#endif
+}
 
 void QOpenHDLink::processCommand(QByteArray buffer) {
 #if defined(ENABLE_LINK)
@@ -83,10 +94,14 @@ void QOpenHDLink::processCommand(QByteArray buffer) {
             if (cmd == "setWidgetLocation") {
                 processSetWidgetLocation(commandData);
             }
+
+            if (cmd == "setWidgetEnabled") {
+                processSetWidgetEnabled(commandData);
+            }
         }
     } catch (std::exception &e) {
-        // not much we can do about it but we definitely don't want a crash here,
-        // we may consider show warning messages in the local message panel though
+        /* not much we can do about it but we definitely don't want a crash here,
+           we may consider show warning messages in the local message panel though */
         qDebug() << "exception: " << e.what();
     }
 #endif
@@ -104,5 +119,15 @@ void QOpenHDLink::processSetWidgetLocation(nlohmann::json commandData) {
     bool vCenter = commandData["vCenter"];
 
     emit widgetLocation(QString(widgetName.c_str()), alignment, xOffset, yOffset, hCenter, vCenter);
+#endif
+}
+
+void QOpenHDLink::processSetWidgetEnabled(nlohmann::json commandData) {
+#if defined(ENABLE_LINK)
+    std::string widgetName = commandData["widgetName"];
+
+    bool enabled = commandData["enabled"];
+
+    emit widgetEnabled(QString(widgetName.c_str()), enabled);
 #endif
 }

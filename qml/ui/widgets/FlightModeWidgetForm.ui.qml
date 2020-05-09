@@ -19,6 +19,40 @@ BaseWidget {
     defaultHCenter: true
     defaultVCenter: false
 
+    hasWidgetDetail: true
+    widgetDetailComponent: Column {
+        Item {
+            width: parent.width
+            height: 32
+            Text {
+                id: opacityTitle
+                text: "Opacity"
+                color: "white"
+                height: parent.height
+                font.bold: true
+                font.pixelSize: detailPanelFontPixels
+                anchors.left: parent.left
+                verticalAlignment: Text.AlignVCenter
+            }
+            Slider {
+                id: flight_mode_opacity_Slider
+                orientation: Qt.Horizontal
+                from: .1
+                value: settings.flight_mode_opacity
+                to: 1
+                stepSize: .1
+                height: parent.height
+                anchors.rightMargin: 0
+                anchors.right: parent.right
+                width: parent.width - 96
+
+                onValueChanged: {
+                    settings.flight_mode_opacity = flight_mode_opacity_Slider.value
+                }
+            }
+        }
+    }
+
     Item {
         id: widgetInner
 
@@ -28,7 +62,8 @@ BaseWidget {
             id: flight_mode_icon
             width: 24
             height: 48
-            color: "#ffffff"
+            color: settings.color_shape
+            opacity: settings.flight_mode_opacity
             text: "\uf072"
             anchors.right: flight_mode_text.left
             anchors.rightMargin: 6
@@ -43,8 +78,9 @@ BaseWidget {
             id: flight_mode_text
 
             height: 48
-            color: "#ffffff"
-            text: OpenHD.flight_mode
+            color: settings.color_text
+            opacity: settings.flight_mode_opacity
+            text: OpenHD.armed ? "["+OpenHD.flight_mode+"]" : OpenHD.flight_mode
             anchors.verticalCenter: parent.verticalCenter
             anchors.horizontalCenter: parent.horizontalCenter
             verticalAlignment: Text.AlignVCenter

@@ -8,7 +8,7 @@
 #include <QAndroidJniEnvironment>
 #endif
 
-int battery_voltage_to_percent(int cells, double voltage) {
+int lipo_battery_voltage_to_percent(int cells, double voltage) {
     double cell_voltage = voltage / static_cast<double>(cells);
 
     if (cell_voltage >= 4.2) {
@@ -55,6 +55,56 @@ int battery_voltage_to_percent(int cells, double voltage) {
         return 0;
     }
 }
+
+
+int lifepo4_battery_voltage_to_percent(int cells, double voltage) {
+    double cell_voltage = voltage / static_cast<double>(cells);
+
+    if (cell_voltage >= 3.40) {
+        return 100;
+    } else if (cell_voltage >= 3.20) {
+        return 95;
+    } else if (cell_voltage >= 3.19) {
+        return 90;
+    } else if (cell_voltage >= 3.18) {
+        return 85;
+    } else if (cell_voltage >= 3.17) {
+        return 80;
+    } else if (cell_voltage >= 3.16) {
+        return 75;
+    } else if (cell_voltage >= 3.15) {
+        return 70;
+    } else if (cell_voltage >= 3.14) {
+        return 65;
+    } else if (cell_voltage >= 3.13) {
+        return 60;
+    } else if (cell_voltage >= 3.12) {
+        return 55;
+    } else if (cell_voltage >= 3.11) {
+        return 50;
+    } else if (cell_voltage >= 3.10) {
+        return 45;
+    } else if (cell_voltage >= 3.09) {
+        return 40;
+    } else if (cell_voltage >= 3.08) {
+        return 35;
+    } else if (cell_voltage >= 3.07) {
+        return 30;
+    } else if (cell_voltage >= 3.06) {
+        return 25;
+    } else if (cell_voltage >= 3.05) {
+        return 20;
+    } else if (cell_voltage >= 3.04) {
+        return 15;
+    } else if (cell_voltage >= 3.03) {
+        return 10;
+    } else if (cell_voltage >= 3.02) {
+        return 5;
+    } else {
+        return 0;
+    }
+}
+
 
 QString battery_gauge_glyph_from_percentage(int percent) {
     // these are Material Design Icon codepoints from the battery gauge icon set
@@ -210,6 +260,8 @@ QString plane_mode_from_enum(PLANE_MODE mode) {
             return "RTL";
        case PLANE_MODE_LOITER:
             return "Loiter";
+       case PLANE_MODE_TAKEOFF:
+            return "Takeoff";
        case PLANE_MODE_AVOID_ADSB:
             return "Avoid ADSB";
        case PLANE_MODE_GUIDED:
@@ -255,6 +307,96 @@ QString tracker_mode_from_enum(TRACKER_MODE mode) {
     return "Unknown";
 }
 
+QString vot_mode_from_telemetry(uint8_t mode) {
+    switch (mode) {
+        case 0:
+            return "2D";
+        case 1:
+            return "2DAH";
+        case 2:
+            return "2DHH";
+        case 3:
+            return "2DAHH";
+        case 4:
+            return "LOITER";
+        case 5:
+            return "3D";
+        case 6:
+            return "3DHH";
+        case 7:
+            return "RTH";
+        case 8:
+            return "LAND";
+        case 9:
+            return "CART";
+        case 10:
+            return "CARTLOI";
+        case 11:
+            return "POLAR";
+        case 12:
+            return "POLARLOI";
+        case 13:
+            return "CENTERSTICK";
+        case 14:
+            return "OFF";
+        case 15:
+            return "WAYPOINT";
+        case 16:
+            return "MAX";
+        default:
+            return "Unknown";
+    }
+    return "Unknown";
+}
+
+
+QString ltm_mode_from_telem(int mode) {
+    switch (mode) {
+        case 0:
+            return "Manual";
+        case 1:
+            return "Rate";
+        case 2:
+            return "Angle";
+        case 3:
+            return "Horizon";
+        case 4:
+            return "Acro";
+        case 5:
+            return "Stabilized 1";
+        case 6:
+            return "Stabilized 2";
+        case 7:
+            return "Stabilized 3";
+        case 8:
+            return "Alt Hold";
+        case 9:
+            return "GPS Hold";
+        case 10:
+            return "Waypoints";
+        case 11:
+            return "Head Free";
+        case 12:
+            return "Circle";
+        case 13:
+            return "RTH";
+        case 14:
+            return "Follow Me";
+        case 15:
+            return "Land";
+        case 16:
+            return "Fly By Wire A";
+        case 17:
+            return "Fly By Wire B";
+        case 18:
+            return "Cruise";
+        default:
+            return "Unknown";
+    }
+    return "Unknown";
+}
+
+
 uint map(double input, double input_start, double input_end, uint16_t output_start, uint16_t output_end) {
     double input_range = input_end - input_start;
     int output_range = output_end - output_start;
@@ -285,5 +427,31 @@ void keep_screen_on(bool on) {
     });
 }
 #endif
+
+int default_mavlink_sysid() {
+    #if defined (__macos__)
+        return 220;
+    #endif
+
+    #if defined (__ios__)
+        return 221;
+    #endif
+
+    #if defined (__android__)
+        return 222;
+    #endif
+
+    #if defined (__windows__)
+        return 223;
+    #endif
+
+    #if defined (__rasp_pi__)
+        return 224;
+    #endif
+
+    #if defined (__desktoplinux__)
+        return 225;
+    #endif
+}
 
 #endif // UTIL_CPP

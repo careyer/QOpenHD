@@ -14,6 +14,8 @@ Item {
 
     property alias home_distance: home_distance
     property alias flight_timer: flight_timer
+    property alias flight_distance: flight_distance
+    property alias flight_mah: flight_mah
     property alias flight_mode: flight_mode
     property alias air_battery: air_battery
     property alias gps: gps
@@ -38,7 +40,13 @@ Item {
 
     property alias throttleWidget: throttleWidget
 
-    property alias pipVideoWidget: pipVideoWidget
+    property alias controlWidget: controlWidget
+
+    property alias vibrationWidget: vibrationWidget
+
+    property alias vsiWidget: vsiWidget
+
+    property alias windWidget: windWidget
 
     MessageHUD {
         id: messageHUD
@@ -63,6 +71,14 @@ Item {
     FlightTimerWidget {
         id: flight_timer
     }
+
+    FlightDistanceWidget {
+            id: flight_distance
+        }
+
+    FlightMahWidget {
+            id: flight_mah
+        }
 
     BitrateWidget {
         id: bitrate
@@ -117,13 +133,33 @@ Item {
         scale: 0.7
     }
 
-    VideoWidget {
-        id: pipVideoWidget
-        elementName: "pipVideoItem"
+    ControlWidget {
+        id: controlWidget
+     //   scale: 0.7
+    }
+
+    Loader {
+        source: EnablePiP ? "./widgets/VideoWidget.qml" : ""
     }
 
     MapWidget {
         id: mapWidget
+    }
+
+    GPIOWidget {
+        id: gpioWidget
+    }
+
+    VibrationWidget {
+        id: vibrationWidget
+    }
+
+    VsiWidget {
+        id: vsiWidget
+    }
+
+    WindWidget {
+        id: windWidget
     }
 }
 

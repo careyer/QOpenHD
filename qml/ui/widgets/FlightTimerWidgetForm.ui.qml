@@ -21,6 +21,40 @@ BaseWidget {
     defaultHCenter: false
     defaultVCenter: false
 
+    hasWidgetDetail: true
+    widgetDetailComponent: Column {
+        Item {
+            width: parent.width
+            height: 32
+            Text {
+                id: opacityTitle
+                text: "Opacity"
+                color: "white"
+                height: parent.height
+                font.bold: true
+                font.pixelSize: detailPanelFontPixels
+                anchors.left: parent.left
+                verticalAlignment: Text.AlignVCenter
+            }
+            Slider {
+                id: flight_timer_opacity_Slider
+                orientation: Qt.Horizontal
+                from: .1
+                value: settings.flight_timer_opacity
+                to: 1
+                stepSize: .1
+                height: parent.height
+                anchors.rightMargin: 0
+                anchors.right: parent.right
+                width: parent.width - 96
+
+                onValueChanged: {
+                    settings.flight_timer_opacity = flight_timer_opacity_Slider.value
+                }
+            }
+        }
+    }
+
     Item {
         id: widgetInner
 
@@ -31,7 +65,8 @@ BaseWidget {
             y: 0
             width: 64
             height: 24
-            color: "#ffffff"
+            color: settings.color_text
+            opacity: settings.flight_timer_opacity
             text: OpenHD.flight_time
             elide: Text.ElideRight
             anchors.right: parent.right
@@ -47,7 +82,8 @@ BaseWidget {
             y: 0
             width: 24
             height: 24
-            color: "#ffffff"
+            color: settings.color_shape
+            opacity: settings.flight_timer_opacity
             text: "\uf017"
             font.family: "Font Awesome 5 Free"
             anchors.right: flight_timer_text.left

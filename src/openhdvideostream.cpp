@@ -1,3 +1,5 @@
+#if defined(ENABLE_GSTREAMER)
+
 #include "openhdvideostream.h"
 
 #include "constants.h"
@@ -8,6 +10,8 @@
 #include <gst/gst.h>
 
 #include "localmessage.h"
+
+#include "openhd.h"
 
 #if defined(__android__)
 #include <jni.h>
@@ -53,41 +57,6 @@ static void gst_android_init(JNIEnv* env, jobject context) {
     _class_loader = env->NewGlobalRef(class_loader);
 }
 
-/*
-static const char kJniClassName[] {"org/openhd/OpenHDActivity"};
-
-void setNativeMethods(void)
-{
-    JNINativeMethod javaMethods[] {
-        {"nativeInit", "()V", reinterpret_cast<void *>(gst_android_init)}
-    };
-
-    QAndroidJniEnvironment jniEnv;
-    if (jniEnv->ExceptionCheck()) {
-        jniEnv->ExceptionDescribe();
-        jniEnv->ExceptionClear();
-    }
-
-    jclass objectClass = jniEnv->FindClass(kJniClassName);
-    if(!objectClass) {
-        qWarning() << "Couldn't find class:" << kJniClassName;
-        return;
-    }
-
-    jint val = jniEnv->RegisterNatives(objectClass, javaMethods, sizeof(javaMethods) / sizeof(javaMethods[0]));
-
-    if (val < 0) {
-        qWarning() << "Error registering methods: " << val;
-    } else {
-        qDebug() << "Main Native Functions Registered";
-    }
-
-    if (jniEnv->ExceptionCheck()) {
-        jniEnv->ExceptionDescribe();
-        jniEnv->ExceptionClear();
-    }
-}*/
-
 jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     Q_UNUSED(reserved);
 
@@ -95,9 +64,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {
         return -1;
     }
-
-    //setNativeMethods();
-    //QAndroidJniObject::callStaticMethod<void>(kJniClassName, "jniOnLoad");
 
     gst_amc_jni_set_java_vm(vm);
     return JNI_VERSION_1_6;
@@ -148,9 +114,11 @@ G_PASTE(g_io_module_, G_PASTE(name, _load_static)) ()
 #define GST_MOBILE_PLUGIN_RTPMANAGER
 #endif
 
-#if defined(ENABLE_VIDEO)
+#if defined(ENABLE_MAIN_VIDEO) || defined(ENABLE_PIP)
 #ifndef __desktoplinux__
+#ifndef __rasp_pi__
 GST_PLUGIN_STATIC_DECLARE(qmlgl);
+#endif
 #endif
 #endif
 
@@ -408,7 +376,7 @@ OpenHDVideoStream::OpenHDVideoStream(int &argc, char *argv[], QObject * parent):
     qDebug() << "OpenHDVideoStream::OpenHDVideoStream()";
 
 #ifdef __macos__
-    #ifdef ENABLE_VIDEO
+    #if defined(ENABLE_MAIN_VIDEO) || defined(ENABLE_PIP)
         #ifdef RELEASE_BUILD
             QString currentDir = QCoreApplication::applicationDirPath();
             putenv("GST_PLUGIN_SCANNER",           currentDir, "/../Frameworks/GStreamer.framework/Versions/1.0/libexec/gstreamer-1.0/gst-plugin-scanner");
@@ -480,9 +448,11 @@ OpenHDVideoStream::OpenHDVideoStream(int &argc, char *argv[], QObject * parent):
 
     //gst_debug_remove_log_function(gst_debug_log_default);
     //gst_debug_add_log_function(printf_extension_log_func, nullptr, nullptr);
-#if defined(ENABLE_VIDEO)
+#if defined(ENABLE_MAIN_VIDEO) || defined(ENABLE_PIP)
 #ifndef __desktoplinux__
+#ifndef __rasp_pi__
     GST_PLUGIN_STATIC_REGISTER(qmlgl);
+#endif
 #endif
 #endif
 
@@ -692,10 +662,10 @@ void OpenHDVideoStream::init(QQmlApplicationEngine* engine = nullptr, enum Strea
     m_stream_type = stream_type;
     switch (m_stream_type) {
         case StreamTypeMain:
-            m_elementName = "mainVideoItem";
+            m_elementName = "mainVideoGStreamer";
             break;
         case StreamTypePiP:
-            m_elementName = "pipVideoItem";
+            m_elementName = "pipVideoGStreamer";
             break;
     }
 
@@ -707,11 +677,63 @@ void OpenHDVideoStream::init(QQmlApplicationEngine* engine = nullptr, enum Strea
     } else {
         m_video_port = settings.value("pip_video_port", 5601).toInt();
     }
+    m_enable_rtp = settings.value("enable_rtp", true).toBool();
+
+    m_enable_lte_video = settings.value("enable_lte_video", false).toBool();
+
+    lastDataTimeout = QDateTime::currentMSecsSinceEpoch();
 
     QObject::connect(timer, &QTimer::timeout, this, &OpenHDVideoStream::_timer);
     timer->start(1000);
 
     qDebug() << "OpenHDVideoStream::init()";
+}
+
+
+static gboolean PipelineCb(GstBus *bus, GstMessage *msg, gpointer data) {
+    auto instance = static_cast<OpenHDVideoStream*>(data);
+
+    switch (GST_MESSAGE_TYPE(msg)){
+    case GST_MESSAGE_EOS:{
+            break;
+        }
+        case GST_MESSAGE_ERROR:{
+            break;
+        }
+        case GST_MESSAGE_WARNING:{
+            break;
+        }
+        case GST_MESSAGE_INFO:{
+            break;
+        }
+        case GST_MESSAGE_TAG:{
+            break;
+        }
+        case GST_MESSAGE_BUFFERING:{
+            break;
+        }
+        case GST_MESSAGE_ELEMENT:{
+            auto m = QString(gst_structure_get_name(gst_message_get_structure(msg)));
+            if (m == "GstUDPSrcTimeout") {
+                instance->lastDataTimeout = QDateTime::currentMSecsSinceEpoch();
+            }
+            break;
+        }
+        case GST_MESSAGE_LATENCY: {
+            break;
+        }
+        case GST_MESSAGE_QOS: {
+            break;
+        }
+        case GST_MESSAGE_UNKNOWN: {
+            break;
+        }
+        default: {
+            break;
+        }
+    }
+
+    return TRUE;
 }
 
 void OpenHDVideoStream::_start() {
@@ -731,24 +753,30 @@ void OpenHDVideoStream::_start() {
     } else {
         qDebug() << "Listening on port" << m_video_port;
 
-        s << QString("udpsrc  port=%1 caps=\"application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264\" !").arg(m_video_port);
-        s << "rtpjitterbuffer latency=25 mode=0 !";
-        s << "rtph264depay ! ";
-        //s << "queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 !";
-
-        if (m_enable_hardware_video_decoder) {
-            qDebug() << "Using hardware decoder";
-            s << "h264parse !";
-            s << "decodebin3 !";
-            //s << "amcviddec-omxqcomvideodecoderavc !";
-            //s << "amcviddec-omxmtkvideodecoderavc !";
+        if (m_enable_rtp || m_stream_type == StreamTypePiP) {
+            s << QString("udpsrc port=%1 caps=\"application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264\" timeout=1000000000 !").arg(m_video_port);
+            s << "rtpjitterbuffer !";
+            s << "rtph264depay ! ";
         } else {
-            qDebug() << "Using software decoder";
+            s << QString("udpsrc port=%1 timeout=1000000000 !").arg(m_video_port);
+        }
+        s << "queue !";
+
+        if (m_enable_software_video_decoder) {
+            qDebug() << "Forcing software decoder";
             s << "h264parse !";
             s << "avdec_h264 !";
+        } else {
+            qDebug() << "Using hardware decoder, fallback to software if unavailable";
+            s << "h264parse !";
+            #if defined(__rasp_pi__)
+            s << "omxh264dec !";
+            #else
+            s << "decodebin3 !";
+            #endif
         }
     }
-    //s << "queue max-size-buffers=0 max-size-time=0 max-size-bytes=0 !";
+    s << "queue !";
 
     s << "glupload ! glcolorconvert !";
     s << "qmlglsink name=qmlglsink sync=false";
@@ -758,6 +786,13 @@ void OpenHDVideoStream::_start() {
         qDebug() << "gst_parse_launch error: " << error->message;
     }
     GstElement *qmlglsink = gst_bin_get_by_name(GST_BIN(m_pipeline), "qmlglsink");
+
+
+    GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE(m_pipeline));
+
+    gst_bus_add_signal_watch(bus);
+    g_signal_connect(bus, "message", (GCallback)PipelineCb, this);
+
 
     QQuickItem *videoItem;
     QQuickWindow *rootObject;
@@ -790,6 +825,13 @@ void OpenHDVideoStream::_start() {
     } else {
         gst_element_set_state (m_pipeline, GST_STATE_PLAYING);
     }
+
+    lastDataTimeout = QDateTime::currentMSecsSinceEpoch();
+    OpenHD::instance()->set_main_video_running(false);
+    OpenHD::instance()->set_pip_video_running(false);
+
+    mainLoop = g_main_loop_new(nullptr, FALSE);
+    g_main_loop_run(mainLoop);
 }
 
 /*
@@ -805,28 +847,40 @@ void OpenHDVideoStream::_timer() {
     }
     QSettings settings;
     auto _enable_videotest = settings.value("enable_videotest", false).toBool();
-    auto _enable_hardware_video_decoder = settings.value("enable_hardware_video_decoder", true).toBool();
+    auto _enable_software_video_decoder = settings.value("enable_software_video_decoder", false).toBool();
+    auto _enable_rtp = settings.value("enable_rtp", true).toBool();
+
+    auto _enable_lte_video = settings.value("enable_lte_video", false).toBool();
+
     auto _show_pip_video = settings.value("show_pip_video", false).toBool();
 
     auto _main_video_port = settings.value("main_video_port", main_default_port).toInt();
+    if (m_enable_lte_video) {
+        _main_video_port = 8000;
+    }
+
     auto _pip_video_port = settings.value("pip_video_port", pip_default_port).toInt();
 
 
     if (m_stream_type == StreamTypeMain) {
-        if (_enable_videotest != m_enable_videotest || _enable_hardware_video_decoder != m_enable_hardware_video_decoder || _main_video_port != m_video_port) {
+        if (_enable_videotest != m_enable_videotest || _enable_software_video_decoder != m_enable_software_video_decoder || _main_video_port != m_video_port || _enable_rtp != m_enable_rtp || _enable_lte_video != m_enable_lte_video) {
             qDebug() << "Restarting main stream";
             stopVideo();
             m_enable_videotest = _enable_videotest;
-            m_enable_hardware_video_decoder = _enable_hardware_video_decoder;
+            m_enable_software_video_decoder = _enable_software_video_decoder;
+            m_enable_rtp = _enable_rtp;
+            m_enable_lte_video= _enable_lte_video;
             m_video_port = _main_video_port;
             startVideo();
         }
     } else if (m_stream_type == StreamTypePiP) {
-        if (m_enable_pip_video != _show_pip_video || _enable_videotest != m_enable_videotest || _enable_hardware_video_decoder != m_enable_hardware_video_decoder || _pip_video_port != m_video_port) {
+        if (m_enable_pip_video != _show_pip_video || _enable_videotest != m_enable_videotest || _enable_software_video_decoder != m_enable_software_video_decoder || _pip_video_port != m_video_port || _enable_rtp != m_enable_rtp) {
             qDebug() << "Restarting PiP stream";
             stopVideo();
             m_enable_videotest = _enable_videotest;
-            m_enable_hardware_video_decoder = _enable_hardware_video_decoder;
+            m_enable_software_video_decoder = _enable_software_video_decoder;
+            m_enable_rtp = _enable_rtp;
+
             m_video_port = _pip_video_port;
             m_enable_pip_video = _show_pip_video;
             if (_show_pip_video) {
@@ -834,29 +888,47 @@ void OpenHDVideoStream::_timer() {
             }
         }
     }
+
+    auto currentTime = QDateTime::currentMSecsSinceEpoch();
+
+    if (currentTime - lastDataTimeout < 2500) {
+        if (m_stream_type == StreamTypeMain) {
+            OpenHD::instance()->set_main_video_running(false);
+        } else {
+            OpenHD::instance()->set_pip_video_running(false);
+        }
+    } else {
+        if (m_stream_type == StreamTypeMain) {
+            OpenHD::instance()->set_main_video_running(true);
+        } else {
+            OpenHD::instance()->set_pip_video_running(true);
+        }
+    }
 }
 
 void OpenHDVideoStream::startVideo() {
-#if defined(ENABLE_VIDEO)
+#if defined(ENABLE_MAIN_VIDEO) || defined(ENABLE_PIP)
     QFuture<void> future = QtConcurrent::run(this, &OpenHDVideoStream::_start);
 #endif
 }
 
 void OpenHDVideoStream::_stop() {
-#if defined(ENABLE_VIDEO)
+#if defined(ENABLE_MAIN_VIDEO) || defined(ENABLE_PIP)
     qDebug() << "OpenHDVideoStream::_stop()";
 
     if (m_pipeline != nullptr) {
         gst_element_set_state (m_pipeline, GST_STATE_NULL);
         //gst_object_unref (m_pipeline);
+        g_main_loop_quit(mainLoop);
     }
 #endif
 }
 
 void OpenHDVideoStream::stopVideo() {
-#if defined(ENABLE_VIDEO)
+#if defined(ENABLE_MAIN_VIDEO) || defined(ENABLE_PIP)
     QFuture<void> future = QtConcurrent::run(this, &OpenHDVideoStream::_stop);
 #endif
 }
 
 
+#endif

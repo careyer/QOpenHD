@@ -10,8 +10,8 @@ import "../ui" as Ui
 
 Rectangle {
     id: element2
-    width: 504
-    height: 300
+    Layout.fillHeight: true
+    Layout.fillWidth: true
     color: "#000000"
     property alias license: license
 
@@ -60,10 +60,10 @@ Rectangle {
     Text {
         id: openhd_version
         width: 173
-        height: OpenHDPi.is_raspberry_pi ? 14 : 0
+        height: 14
         clip: true
         color: "#b3ffffff"
-        text: "Open.HD " + OPENHD_VERSION
+        text: "Ground: " + GroundStatusMicroservice.openHDVersion
         anchors.left: title.left
         anchors.leftMargin: 0
         anchors.top: qopenhd_version.bottom
@@ -74,10 +74,10 @@ Rectangle {
     Text {
         id: builder_version
         width: 173
-        height: OpenHDPi.is_raspberry_pi ? 14 : 0
+        height: 14
         clip: true
         color: "#b3ffffff"
-        text: "Builder " + BUILDER_VERSION
+        text: "Air: " + AirStatusMicroservice.openHDVersion
         anchors.left: title.left
         anchors.leftMargin: 0
         anchors.top: openhd_version.bottom

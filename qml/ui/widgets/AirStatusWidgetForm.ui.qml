@@ -21,6 +21,40 @@ BaseWidget {
     defaultHCenter: false
     defaultVCenter: false
 
+    hasWidgetDetail: true
+    widgetDetailComponent: Column {
+        Item {
+            width: parent.width
+            height: 32
+            Text {
+                id: opacityTitle
+                text: "Opacity"
+                color: "white"
+                height: parent.height
+                font.bold: true
+                font.pixelSize: detailPanelFontPixels
+                anchors.left: parent.left
+                verticalAlignment: Text.AlignVCenter
+            }
+            Slider {
+                id: air_status_opacity_Slider
+                orientation: Qt.Horizontal
+                height: parent.height
+                from: .1
+                value: settings.air_status_opacity
+                to: 1
+                stepSize: .1
+                anchors.rightMargin: 0
+                anchors.right: parent.right
+                width: parent.width - 96
+
+                onValueChanged: {
+                    settings.air_status_opacity = air_status_opacity_Slider.value
+                }
+            }
+        }
+    }
+
     Item {
         id: widgetInner
 
@@ -31,7 +65,8 @@ BaseWidget {
             y: 0
             width: 24
             height: 24
-            color: "#ffffff"
+            color: settings.color_shape
+            opacity: settings.air_status_opacity
             text: "\uf2db"
             anchors.right: cpuload_air.left
             anchors.rightMargin: 2
@@ -50,8 +85,9 @@ BaseWidget {
             y: 0
             width: 34
             height: 24
-            color: "#ffffff"
-            text: OpenHD.cpuload_air
+            color: settings.color_text
+            opacity: settings.air_status_opacity
+            text: Number(OpenHD.cpuload_air).toLocaleString(Qt.locale(), 'f', 0) + "%";
             anchors.right: temp_air.left
             anchors.rightMargin: 2
             anchors.verticalCenter: parent.verticalCenter
@@ -66,8 +102,9 @@ BaseWidget {
             y: 4
             width: 34
             height: 24
-            color: "#ffffff"
-            text: OpenHD.temp_air
+            color: settings.color_text
+            opacity: settings.air_status_opacity
+            text: Number(OpenHD.temp_air).toLocaleString(Qt.locale(), 'f', 0) + "°";
             anchors.verticalCenter: parent.verticalCenter
             anchors.right: parent.right
             anchors.rightMargin: 0

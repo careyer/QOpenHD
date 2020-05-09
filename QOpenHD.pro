@@ -1,4 +1,4 @@
-!equals(QT_MAJOR_VERSION, 5) | !greaterThan(QT_MINOR_VERSION, 6) {
+!equals(QT_MAJOR_VERSION, 5) | !greaterThan(QT_MINOR_VERSION, 12) {
     error("Unsupported Qt version, 5.12+ is required")
 }
 
@@ -11,6 +11,9 @@ CONFIG+=sdk_no_version_check
 include(platforms.pri)
 
 include(git.pri)
+
+include ($$PWD/lib/SortFilterProxyModel/SortFilterProxyModel.pri)
+
 
 CONFIG(debug, debug|release) {
     DESTDIR = $${OUT_PWD}/debug
@@ -34,21 +37,31 @@ CONFIG(debug, debug|release) {
 
 
 QT += qml quick concurrent opengl gui
+QT += positioning location
+
+QT_FOR_CONFIG += location-private
+qtConfig(geoservices_mapboxgl): QT += sql opengl
+qtConfig(geoservices_osm): QT += concurrent
 
 INCLUDEPATH += $$PWD/inc
 INCLUDEPATH += $$PWD/lib
-INCLUDEPATH += $$PWD/lib/mavlink_generated
-INCLUDEPATH += $$PWD/lib/mavlink_generated/common
-INCLUDEPATH += $$PWD/lib/mavlink_generated/ardupilotmega
+INCLUDEPATH += $$PWD/lib/mavlink_generated/include/mavlink/v2.0
 
 INCLUDEPATH += $$PWD/lib/GeographicLib-1.50/include
 
 
 SOURCES += \
+    lib/h264bitstream/h264_avcc.c \
+    lib/h264bitstream/h264_nal.c \
+    lib/h264bitstream/h264_sei.c \
+    lib/h264bitstream/h264_stream.c \
+    src/FPS.cpp \
     src/frskytelemetry.cpp \
+    src/gpiomicroservice.cpp \
     src/localmessage.cpp \
     src/ltmtelemetry.cpp \
     src/main.cpp \
+    src/mavlinkbase.cpp \
     src/mavlinktelemetry.cpp \
     src/msptelemetry.cpp \
     src/openhd.cpp \
@@ -56,29 +69,48 @@ SOURCES += \
     src/openhdrc.cpp \
     src/openhdsettings.cpp \
     src/openhdtelemetry.cpp \
-    src/openhdvideostream.cpp \
+    src/opensky.cpp \
+    src/powermicroservice.cpp \
     src/qopenhdlink.cpp \
-    src/util.cpp
+    src/smartporttelemetry.cpp \
+    src/statuslogmodel.cpp \
+    src/statusmicroservice.cpp \
+    src/util.cpp \
+    src/vectortelemetry.cpp
 
 RESOURCES += qml/qml.qrc
 
 HEADERS += \
+    inc/FPS.h \
+    inc/gpiomicroservice.h \
+    inc/mavlinkbase.h \
+    inc/opensky.h \
+    inc/powermicroservice.h \
+    inc/sharedqueue.h \
     inc/constants.h \
     inc/frskytelemetry.h \
     inc/localmessage.h \
     inc/localmessage_t.h \
     inc/ltmtelemetry.h \
     inc/mavlinktelemetry.h \
+    inc/migration.hpp \
     inc/msptelemetry.h \
     inc/openhd.h \
     inc/openhdpi.h \
     inc/openhdrc.h \
     inc/openhdsettings.h \
     inc/openhdtelemetry.h \
-    inc/openhdvideostream.h \
     inc/qopenhdlink.h \
+    inc/smartporttelemetry.h \
+    inc/statuslogmodel.h \
+    inc/statusmicroservice.h \
     inc/util.h \
-    inc/wifibroadcast.h
+    inc/vectortelemetry.h \
+    inc/wifibroadcast.h \
+    lib/h264bitstream/bs.h \
+    lib/h264bitstream/h264_avcc.h \
+    lib/h264bitstream/h264_sei.h \
+    lib/h264bitstream/h264_stream.h
 
 DISTFILES += \
     android/AndroidManifest.xml \
@@ -99,24 +131,6 @@ DISTFILES += \
     android/src/org/freedesktop/gstreamer/androidmedia/GstAhcCallback.java \
     android/src/org/freedesktop/gstreamer/androidmedia/GstAhsCallback.java \
     android/src/org/freedesktop/gstreamer/androidmedia/GstAmcOnFrameAvailableListener.java \
-    icons/AppIcon.appiconset/iPad-app.png \
-    icons/AppIcon.appiconset/iPad-app@2x.png \
-    icons/AppIcon.appiconset/iPad-notifications.png \
-    icons/AppIcon.appiconset/iPad-notifications@2x.png \
-    icons/AppIcon.appiconset/iPad-pro@2x.png \
-    icons/AppIcon.appiconset/iPad-settings.png \
-    icons/AppIcon.appiconset/iPad-settings@2x.png \
-    icons/AppIcon.appiconset/iPad-spotlight.png \
-    icons/AppIcon.appiconset/iPad-spotlight@2x.png \
-    icons/AppIcon.appiconset/iPhone-app@2x.png \
-    icons/AppIcon.appiconset/iPhone-app@3x.png \
-    icons/AppIcon.appiconset/iPhone-notifications@2x.png \
-    icons/AppIcon.appiconset/iPhone-notifications@3x.png \
-    icons/AppIcon.appiconset/iPhone-settings@2x.png \
-    icons/AppIcon.appiconset/iPhone-settings@3x.png \
-    icons/AppIcon.appiconset/iPhone-spotlight@2x.png \
-    icons/AppIcon.appiconset/iPhone-spotlight@3x.png \
-    icons/AppIcon.appiconset/iTunesArtwork@2x.png \
     qml/qtquickcontrols2.conf \
     qml/ui/qmldir
 
@@ -173,21 +187,34 @@ iOSBuild {
     CONFIG -= bitcode
     #CONFIG += EnableGamepads
     CONFIG += EnableSpeech
-    CONFIG += EnableVideo
+    CONFIG += EnableMainVideo
     CONFIG += EnablePiP
+    CONFIG += EnableVideoRender
     CONFIG += EnableLink
+    CONFIG += EnableCharts
 
     #QMAKE_POST_LINK += /usr/libexec/PlistBuddy -c \"Set :CFBundleShortVersionString $$APPLE_BUILD\" $$DESTDIR/$${TARGET}.app/Contents/Info.plist
     #QMAKE_POST_LINK += && /usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $$APPLE_BUILD\" $$DESTDIR/$${TARGET}.app/Contents/Info.plist
     app_launch_images.files = $$PWD/icons/LaunchScreen.png $$files($$PWD/icons/LaunchScreen.storyboard)
     QMAKE_BUNDLE_DATA += app_launch_images
 
-    ios_icon.files = $$files($$PWD/icons/AppIcon.appiconset/*.png)
-    QMAKE_BUNDLE_DATA += ios_icon
+    QMAKE_ASSET_CATALOGS += $$PWD/icons/ios/Assets.xcassets
 
-    DEFINES += GST_GL_HAVE_WINDOW_EAGL=1
-    DEFINES += GST_GL_HAVE_PLATFORM_EAGL=1
-    DEFINES += HAVE_QT_IOS
+    EnableVideoRender {
+        QT += multimedia
+
+        HEADERS += \
+            inc/openhdapplevideo.h
+
+        SOURCES += \
+            src/openhdapplevideo.cpp
+    }
+
+    EnableGStreamer {
+        DEFINES += GST_GL_HAVE_WINDOW_EAGL=1
+        DEFINES += GST_GL_HAVE_PLATFORM_EAGL=1
+        DEFINES += HAVE_QT_IOS
+    }
 }
 
 MacBuild {
@@ -199,22 +226,32 @@ MacBuild {
     #CONFIG += EnableGamepads
     CONFIG += EnableJoysticks
     CONFIG += EnableSpeech
-    CONFIG += EnableVideo
+    CONFIG += EnableMainVideo
     CONFIG += EnablePiP
+    CONFIG += EnableVideoRender
     CONFIG += EnableLink
+    CONFIG += EnableCharts
 
-    DEFINES += GST_GL_HAVE_WINDOW_COCOA=1
-    DEFINES += GST_GL_HAVE_PLATFORM_CGL=1
-    DEFINES += HAVE_QT_MAC
+    EnableVideoRender {
+        QT += multimedia
+
+        HEADERS += \
+            inc/openhdapplevideo.h
+
+        SOURCES += \
+            src/openhdapplevideo.cpp
+    }
 }
 
 LinuxBuild {
     QT += x11extras
     #CONFIG += EnableGamepads
     CONFIG += EnableJoysticks
-    CONFIG += EnableVideo
+    CONFIG += EnableMainVideo
     CONFIG += EnablePiP
+    CONFIG += EnableGStreamer
     CONFIG += EnableLink
+    CONFIG += EnableCharts
 
     message("LinuxBuild - config")
 }
@@ -225,21 +262,36 @@ RaspberryPiBuild {
     # handled by another process running on the ground station. We could
     # replace that at some point but for now it isn't necessary.
     message("RaspberryPiBuild - config")
-    #CONFIG += EnableVideo
-    #CONFIG +- EnablePiP
+    #CONFIG += EnableMainVideo
+    CONFIG += EnablePiP
     CONFIG += EnableLink
+    CONFIG += EnableCharts
 
-    DEFINES += GST_GL_HAVE_PLATFORM_EGL=1
-    DEFINES += HAVE_QT_EGLFS=1
+    CONFIG += EnableVideoRender
+
+    EnableVideoRender {
+        LIBS += -L/usr/lib/arm-linux-gnueabihf -L/opt/vc/lib/ -lbcm_host -lmmal -lmmal_util -lmmal_components -lmmal_core -lmmal_vc_client -lvcos -lvcsm -lvchostif -lvchiq_arm
+        QT += multimedia
+
+        INCLUDEPATH += /opt/vc/include
+
+        HEADERS += \
+            inc/openhdmmalvideo.h
+
+        SOURCES += \
+            src/openhdmmalvideo.cpp
+    }
 }
 
 WindowsBuild {
     #CONFIG += EnableGamepads
     CONFIG += EnableJoysticks
     CONFIG += EnableSpeech
-    CONFIG += EnableVideo
+    CONFIG += EnableMainVideo
     #CONFIG +- EnablePiP
     CONFIG += EnableLink
+    CONFIG += EnableGStreamer
+    CONFIG += EnableCharts
 
     DEFINES += GST_GL_HAVE_WINDOW_WIN32=1
     DEFINES += GST_GL_HAVE_PLATFORM_WGL=1
@@ -252,18 +304,28 @@ AndroidBuild {
     #CONFIG += EnableGamepads
     CONFIG += EnableJoysticks
     CONFIG += EnableSpeech
-    CONFIG += EnableVideo
+    CONFIG += EnableMainVideo
     CONFIG += EnablePiP
     CONFIG += EnableLink
+    CONFIG += EnableGStreamer
+    CONFIG += EnableCharts
+    EnableGStreamer {
+        OTHER_FILES += \
+            $$PWD/android/src/org/openhd/OpenHDActivity.java
+
+        DEFINES += GST_GL_HAVE_PLATFORM_EGL=1
+        DEFINES += GST_GL_HAVE_WINDOW_ANDROID=1
+        DEFINES += HAVE_QT_ANDROID
+    }
+
 
     QT += androidextras
+}
 
-    OTHER_FILES += \
-        $$PWD/android/src/org/openhd/OpenHDActivity.java
-
-    DEFINES += GST_GL_HAVE_PLATFORM_EGL=1
-    DEFINES += GST_GL_HAVE_WINDOW_ANDROID=1
-    DEFINES += HAVE_QT_ANDROID
+EnableCharts {
+    message("EnableCharts")
+    DEFINES += ENABLE_CHARTS
+    QT += charts
 }
 
 EnableSpeech {
@@ -272,9 +334,35 @@ EnableSpeech {
     QT += texttospeech
 }
 
-EnableVideo {
-    message("EnableVideo")
-    DEFINES += ENABLE_VIDEO
+EnableMainVideo {
+    message("EnableMainVideo")
+    DEFINES += ENABLE_MAIN_VIDEO
+}
+
+EnableGStreamer {
+    DEFINES += ENABLE_GSTREAMER
+
+    SOURCES += \
+        src/openhdvideostream.cpp
+
+    HEADERS += \
+        inc/openhdvideostream.h
+
+    include ($$PWD/lib/VideoStreaming/VideoStreaming.pri)
+}
+
+EnableVideoRender {
+    message("EnableVideoRender")
+
+    DEFINES += ENABLE_VIDEO_RENDER
+
+    HEADERS += \
+        inc/openhdvideo.h \
+        inc/openhdrender.h
+
+    SOURCES += \
+        src/openhdvideo.cpp \
+        src/openhdrender.cpp
 }
 
 EnablePiP {
@@ -288,7 +376,6 @@ EnableLink {
     HEADERS += lib/json.hpp
 }
 
-include ($$PWD/lib/VideoStreaming/VideoStreaming.pri)
 
 EnableRC {
     message("EnableRC")
@@ -311,14 +398,28 @@ EnableRC {
 installer {
     MacBuild {
         DESTDIR_COPY_RESOURCE_LIST = $$DESTDIR/$${TARGET}.app/Contents/MacOS
-        QMAKE_POST_LINK += $${BASEDIR}/tools/prepare_gstreamer_framework.sh $${DESTDIR}/gstwork $${DESTDIR}/$${TARGET}.app $${TARGET}
-        QMAKE_POST_LINK += && cd $${DESTDIR}
+        EnableGStreamer {
+            QMAKE_POST_LINK += $${BASEDIR}/tools/prepare_gstreamer_framework.sh $${DESTDIR}/gstwork $${DESTDIR}/$${TARGET}.app $${TARGET}
+            QMAKE_POST_LINK += && cd $${DESTDIR}
+        }
+
+        EnableVideoRender {
+            QMAKE_POST_LINK += cd $${DESTDIR}
+        }
+
         QMAKE_POST_LINK += && $$dirname(QMAKE_QMAKE)/macdeployqt $${TARGET}.app -appstore-compliant -qmldir=$${BASEDIR}/qml
 
         QMAKE_POST_LINK += && /usr/libexec/PlistBuddy -c \"Set :CFBundleShortVersionString $$APPLE_BUILD\" $$DESTDIR/$${TARGET}.app/Contents/Info.plist
         QMAKE_POST_LINK += && /usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $$APPLE_BUILD\" $$DESTDIR/$${TARGET}.app/Contents/Info.plist
 
-        QMAKE_POST_LINK += && codesign --force --verify --sign \"${DEV_CERT}\" --keychain ${HOME}/Library/Keychains/login.keychain $${TARGET}.app --deep
+        IS_TRAVIS = $$(TRAVIS)
+
+        !isEmpty(IS_TRAVIS) {
+            QMAKE_POST_LINK += && codesign --force --verify --sign \"${DEV_CERT}\" --keychain ${PWD}/openhd.keychain $${TARGET}.app --deep
+        } else {
+            QMAKE_POST_LINK += && codesign --force --verify --sign \"${DEV_CERT}\" --keychain ${HOME}/Library/Keychains/login.keychain $${TARGET}.app --deep
+        }
+
 
 
         QMAKE_POST_LINK += && hdiutil create $${TARGET}.dmg -volname $${TARGET} -fs HFS+ -srcfolder $${DESTDIR}/$${TARGET}.app
@@ -331,7 +432,7 @@ installer {
         OTHER_FILES += tools/qopenhd_installer.nsi
         QMAKE_POST_LINK +=$${PWD}/win_deploy_sdl.cmd \"$$DESTDIR_WIN\" \"$$PWD\QJoysticks\lib\SDL\bin\windows\msvc\x86\" $$escape_expand(\\n)
 
-        QMAKE_POST_LINK += $$escape_expand(\\n) c:\Qt\5.13.1\msvc2017\bin\windeployqt.exe --qmldir $${PWD}/qml \"$${DESTDIR_WIN}\\QOpenHD.exe\"
+        QMAKE_POST_LINK += $$escape_expand(\\n) c:\Qt\5.14.2\msvc2017\bin\windeployqt.exe --qmldir $${PWD}/qml \"$${DESTDIR_WIN}\\QOpenHD.exe\"
 
         #QMAKE_POST_LINK += && $$escape_expand(\\n) $$QMAKE_COPY \"C:\\Windows\\System32\\msvcp140.dll\"  \"$$DESTDIR_WIN\"
         #QMAKE_POST_LINK += && $$escape_expand(\\n) $$QMAKE_COPY \"C:\\Windows\\System32\\msvcr140.dll\"  \"$$DESTDIR_WIN\"

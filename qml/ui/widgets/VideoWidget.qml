@@ -3,6 +3,24 @@ import QtQuick.Window 2.12
 import QtQuick.Layouts 1.12
 
 Loader {
-    property string elementName
-    source: (EnableVideo && EnablePiP) ? "VideoWidgetForm.ui.qml" : ""
+    source: {
+        if (EnableGStreamer && EnablePiP) {
+            return "VideoWidgetGStreamerForm.ui.qml"
+        }
+
+
+        if (IsRaspPi && EnableVideoRender && EnablePiP) {
+            return "VideoWidgetRenderForm.ui.qml"
+        }
+
+        if (IsMac && EnableVideoRender && EnablePiP) {
+            return "VideoWidgetRenderForm.ui.qml"
+        }
+
+        if (IsiOS && EnableVideoRender && EnablePiP) {
+            return "VideoWidgetRenderForm.ui.qml"
+        }
+        return ""
+    }
+    property bool isRunning: OpenHD.pip_video_running
 }

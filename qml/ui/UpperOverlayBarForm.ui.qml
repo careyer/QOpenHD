@@ -15,10 +15,52 @@ Rectangle {
     property alias settingsButton: settingsButton
     property alias settingsButtonMouseArea: settingsButtonMouseArea
 
-    width: 800
+    width: 800      
+    height: 48
 
-    // fixme: shouldnt exclusively depend on mavlink
-    color: OpenHD.armed ? "#aeff3333" : "#8f000000"
+    z: 1.0
+
+    Component.onCompleted: {
+        getBarColor()
+    }
+
+    function getBarColor() {
+        var barColor = settings.bar_behavior
+        switch (barColor) {
+            case "none": {
+                toolBar.color= "#00000000"
+                break;
+            }
+            case "disappear": {
+                toolBar.color= OpenHD.armed ? "#00000000" : "#8f000000"
+                break;
+            }
+            case "red": {
+                toolBar.color= OpenHD.armed ? "#aeff3333" : "#8f000000"
+                break;
+            }
+            case "black": {
+                toolBar.color= "#8f000000"
+                break;
+            }
+        }
+    }
+
+    Connections{
+        target:settings
+        onBar_behaviorChanged: {
+            //console.log("onbar behavior changed!");
+            getBarColor()
+        }
+    }
+
+    Connections{
+        target:OpenHD
+        onArmedChanged: {
+            //console.log("onbar behavior changed!");
+            getBarColor()
+        }
+    }
 
     anchors {
         top: parent.top
@@ -26,9 +68,6 @@ Rectangle {
         right: parent.right
     }
 
-    z: 2.0
-
-    height: 48
 
     Image {
         id: settingsButton
@@ -40,7 +79,7 @@ Rectangle {
         fillMode: Image.PreserveAspectFit
         z: 2.2
 
-        source: "../ic.png"
+        source: "../ic128.png"
         anchors.leftMargin: 8
         anchors.topMargin: 8
         MouseArea {

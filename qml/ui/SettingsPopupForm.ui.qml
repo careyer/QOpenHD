@@ -11,34 +11,16 @@ import OpenHD 1.0
 
 import "../ui" as Ui
 
-Popup {
-    property alias save: groundPiSettingsPanel.save
+Rectangle {
     property alias settings_popup: settings_popup
     property alias closeButton: closeButton
     property alias rebootButton: rebootButton
 
     id: settings_popup
-    parent: Overlay.overlay
 
-    x: Math.round((Overlay.overlay.width - width) / 2)
-    y: Math.round((Overlay.overlay.height - height) / 2)
+    anchors.fill: parent
 
-    width: applicationWindow.width
-    height: applicationWindow.height
-
-
-    padding: 0
-    rightPadding: 0
-    bottomPadding: 0
-    leftPadding: 0
-    topPadding: 0
-    margins: 0
-    rightMargin: 0
-    bottomMargin: 0
-    leftMargin: 0
-    topMargin: 0
-    modal: true
-    clip: true
+    z: 4.0
 
     Rectangle {
         id: sidebar
@@ -129,16 +111,39 @@ Popup {
         }
 
         Text {
-            id: aboutButton
+            id: chartsButton
             y: 0
             width: parent.width
             height: 48
             anchors.top: statusButton.bottom
             leftPadding: 12
             MouseArea {
-                id: aboutButtonMouseArea
+                id: chartsSettingsButtonMouseArea
                 anchors.fill: parent
                 onClicked: mainStackLayout.currentIndex = 3
+            }
+            text: "Charts"
+            anchors.right: parent.right
+            anchors.rightMargin: 0
+            anchors.left: parent.left
+            anchors.leftMargin: 0
+            font.pixelSize: 15
+            horizontalAlignment: Text.AlignLeft
+            verticalAlignment: Text.AlignVCenter
+            color: mainStackLayout.currentIndex == 3 ? "#33aaff" : "#333333"
+        }
+
+        Text {
+            id: aboutButton
+            y: 0
+            width: parent.width
+            height: 48
+            anchors.top: chartsButton.bottom
+            leftPadding: 12
+            MouseArea {
+                id: aboutButtonMouseArea
+                anchors.fill: parent
+                onClicked: mainStackLayout.currentIndex = 4
             }
             text: "About"
             anchors.topMargin: 0
@@ -149,7 +154,7 @@ Popup {
             font.pixelSize: 15
             horizontalAlignment: Text.AlignLeft
             verticalAlignment: Text.AlignVCenter
-            color: mainStackLayout.currentIndex == 3 ? "#33aaff" : "#333333"
+            color: mainStackLayout.currentIndex == 4 ? "#33aaff" : "#333333"
         }
 
 
@@ -209,6 +214,10 @@ Popup {
 
         StatusPanel {
             id: statusPanel
+        }
+
+        ChartsPanel {
+            id: chartsPanel
         }
 
         AboutPanel {

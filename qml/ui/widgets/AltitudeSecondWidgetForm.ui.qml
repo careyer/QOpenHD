@@ -17,7 +17,7 @@ BaseWidget {
     defaultYOffset: 64
     dragging: false
 
-    visible: settings.show_second_alt
+    visible: settings.show_altitude_second
 
     widgetIdentifier: "altitude_second_widget"
 
@@ -25,25 +25,55 @@ BaseWidget {
     widgetDetailComponent: Column {
         Item {
             width: parent.width
-            height: 24
+            height: 32
             Text {
-                text: "MSL or Relative"
+                id: opacityTitle
+                text: "Opacity"
                 color: "white"
+                height: parent.height
                 font.bold: true
-                font.pixelSize: detailPanelFontPixels;
+                font.pixelSize: detailPanelFontPixels
                 anchors.left: parent.left
+                verticalAlignment: Text.AlignVCenter
+            }
+            Slider {
+                id: altitude_second_opacity_Slider
+                orientation: Qt.Horizontal
+                height: parent.height
+                from: .1
+                value: settings.altitude_second_opacity
+                to: 1
+                stepSize: .1
+                anchors.rightMargin: 0
+                anchors.right: parent.right
+                width: parent.width - 96
+
+
+                onValueChanged: {
+                    settings.altitude_second_opacity = altitude_second_opacity_Slider.value
+                }
+            }
+        }
+        Item {
+            width: parent.width
+            height: 32
+            Text {
+                id: mslTitle
+                text: "Relative (off) / MSL (on)"
+                color: "white"
+                height: parent.height
+                font.bold: true
+                font.pixelSize: detailPanelFontPixels
+                anchors.left: parent.left
+                verticalAlignment: Text.AlignVCenter
             }
             Switch {
                 width: 32
                 height: parent.height
                 anchors.rightMargin: 12
                 anchors.right: parent.right
-                // @disable-check M222
-                Component.onCompleted: checked = settings.value(
-                                           "second_alt_msl_rel", true)
-                // @disable-check M222
-                onCheckedChanged: settings.setValue("second_alt_msl_rel",
-                                                    checked)
+                checked: settings.altitude_second_msl_rel
+                onCheckedChanged: settings.altitude_second_msl_rel = checked
             }
         }
     }
@@ -52,7 +82,8 @@ BaseWidget {
         anchors.fill: widgetInner
         radius: 3
         samples: 17
-        color: "black"
+        color: settings.color_glow
+        opacity: settings.altitude_second_opacity
         source: widgetInner
     }
 
@@ -62,8 +93,13 @@ BaseWidget {
 
         Text {
             id: second_alt_text
-            color: "white"
-            text: qsTr(OpenHD.alt_msl)
+            color: settings.color_text
+            opacity: settings.altitude_second_opacity
+            font.pixelSize: 14
+            text: Number(settings.enable_imperial ? (settings.altitude_second_msl_rel ? (OpenHD.alt_msl*3.28) : (OpenHD.alt_rel*3.28)) :
+                      (settings.altitude_second_msl_rel ? OpenHD.alt_msl : OpenHD.alt_rel)
+                      ).toLocaleString(
+                      Qt.locale(), 'f', 0)
             horizontalAlignment: Text.AlignRight
             topPadding: 2
             bottomPadding: 2
@@ -75,7 +111,8 @@ BaseWidget {
             y: 0
             width: 40
             height: 18
-            color: "#ffffff"
+            color: settings.color_shape
+            opacity: settings.altitude_second_opacity
             text: "\u21a8"
             anchors.left: parent.left
             anchors.leftMargin: 0
@@ -89,9 +126,5 @@ BaseWidget {
     }
 }
 
-/*##^##
-Designer {
-    D{i:0;invisible:true}
-}
-##^##*/
+
 

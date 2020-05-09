@@ -9,8 +9,8 @@ import OpenHD 1.0
 
 BaseWidget {
     id: arrowWidget
-    width: 24
-    height: 24
+    width: 64
+    height: 48
     defaultYOffset: 85
 
     visible: settings.show_arrow
@@ -24,24 +24,53 @@ BaseWidget {
     widgetDetailComponent: Column {
         Item {
             width: parent.width
-            height: 24
+            height: 32
             Text {
-                text: "Invert Arrow"
+                id: opacityTitle
+                text: "Opacity"
                 color: "white"
+                height: parent.height
+                font.bold: true
+                font.pixelSize: detailPanelFontPixels
+                anchors.left: parent.left
+                verticalAlignment: Text.AlignVCenter
+            }
+            Slider {
+                id: arrow_opacity_Slider
+                orientation: Qt.Horizontal
+                from: .1
+                value: settings.arrow_opacity
+                to: 1
+                stepSize: .1
+                height: parent.height
+                anchors.rightMargin: 0
+                anchors.right: parent.right
+                width: parent.width - 96
+
+                onValueChanged: {
+                    settings.arrow_opacity = arrow_opacity_Slider.value
+                }
+            }
+        }
+        Item {
+            width: parent.width
+            height: 32
+            Text {
+                text: "Invert Arrow (off) / (on)"
+                color: "white"
+                height: parent.height
                 font.bold: true
                 font.pixelSize: detailPanelFontPixels;
                 anchors.left: parent.left
+                verticalAlignment: Text.AlignVCenter
             }
             Switch {
                 width: 32
                 height: parent.height
                 anchors.rightMargin: 12
                 anchors.right: parent.right
-                // @disable-check M222
-                Component.onCompleted: checked = settings.value("inav_heading",
-                                                                true)
-                // @disable-check M222
-                onCheckedChanged: settings.setValue("inav_heading", checked)
+                checked: settings.arrow_invert
+                onCheckedChanged: settings.arrow_invert = checked
             }
         }
     }
@@ -54,27 +83,31 @@ BaseWidget {
             id: arrow
             anchors.fill: parent
             antialiasing: true
-
+            opacity: settings.arrow_opacity
 
             ShapePath {
                 capStyle: ShapePath.RoundCap
-                strokeColor: "black"
-                fillColor: "white"
+                strokeColor: settings.color_glow
+                fillColor: settings.color_shape
                 strokeWidth: 1
                 strokeStyle: ShapePath.SolidLine
 
-                startX: 12
+                startX: 32
                 startY: 0
-                PathLine { x: 24;                 y: 12  }//right edge of arrow
-                PathLine { x: 18;                 y: 12  }//inner right edge
-                PathLine { x: 18;                 y: 24 }//bottom right edge
-                PathLine { x: 6;                  y: 24 }//bottom left edge
-                PathLine { x: 6;                  y: 12  }//inner left edge
-                PathLine { x: 0;                  y: 12  }//outer left
-                PathLine { x: 12;                  y: 0  }//back to start
+                PathLine { x: 44;                 y: 12  }//right edge of arrow
+                PathLine { x: 38;                 y: 12  }//inner right edge
+                PathLine { x: 38;                 y: 24 }//bottom right edge
+                PathLine { x: 26;                  y: 24 }//bottom left edge
+                PathLine { x: 26;                  y: 12  }//inner left edge
+                PathLine { x: 20;                  y: 12  }//outer left
+                PathLine { x: 32;                  y: 0  }//back to start
             }
 
-            transform: Rotation { origin.x: 12; origin.y: 12; angle: OpenHD.home_course }
+            transform: Rotation {
+                origin.x: 32;
+                origin.y: 12;
+                angle: settings.arrow_invert ? OpenHD.home_course : OpenHD.home_course-180
+            }
         }
 
     }
