@@ -28,7 +28,7 @@ BaseWidget {
             height: 32
             Text {
                 id: opacityTitle
-                text: "Opacity"
+                text: qsTr("Transparency")
                 color: "white"
                 height: parent.height
                 font.bold: true
@@ -58,8 +58,37 @@ BaseWidget {
             width: parent.width
             height: 32
             Text {
+                text: qsTr("Size")
+                color: "white"
+                height: parent.height
+                font.bold: true
+                font.pixelSize: detailPanelFontPixels
+                anchors.left: parent.left
+                verticalAlignment: Text.AlignVCenter
+            }
+            Slider {
+                id: alt_second_size_Slider
+                orientation: Qt.Horizontal
+                from: .5
+                value: settings.altitude_second_size
+                to: 3
+                stepSize: .1
+                height: parent.height
+                anchors.rightMargin: 0
+                anchors.right: parent.right
+                width: parent.width - 96
+
+                onValueChanged: {
+                    settings.altitude_second_size = alt_second_size_Slider.value
+                }
+            }
+        }
+        Item {
+            width: parent.width
+            height: 32
+            Text {
                 id: mslTitle
-                text: "Relative (off) / MSL (on)"
+                text: qsTr("Relative / MSL")
                 color: "white"
                 height: parent.height
                 font.bold: true
@@ -70,7 +99,7 @@ BaseWidget {
             Switch {
                 width: 32
                 height: parent.height
-                anchors.rightMargin: 12
+                anchors.rightMargin: 6
                 anchors.right: parent.right
                 checked: settings.altitude_second_msl_rel
                 onCheckedChanged: settings.altitude_second_msl_rel = checked
@@ -78,48 +107,46 @@ BaseWidget {
         }
     }
 
-    Glow {
-        anchors.fill: widgetInner
-        radius: 3
-        samples: 17
-        color: settings.color_glow
-        opacity: settings.altitude_second_opacity
-        source: widgetInner
-    }
-
     Item {
         id: widgetInner
         anchors.fill: parent
+
+        scale: settings.altitude_second_size
 
         Text {
             id: second_alt_text
             color: settings.color_text
             opacity: settings.altitude_second_opacity
             font.pixelSize: 14
+            font.family: settings.font_text
+            anchors.left: widgetGlyph.right
+            anchors.leftMargin: 0
+            anchors.verticalCenter: widgetGlyph.verticalCenter
             text: Number(settings.enable_imperial ? (settings.altitude_second_msl_rel ? (OpenHD.alt_msl*3.28) : (OpenHD.alt_rel*3.28)) :
                       (settings.altitude_second_msl_rel ? OpenHD.alt_msl : OpenHD.alt_rel)
                       ).toLocaleString(
                       Qt.locale(), 'f', 0)
             horizontalAlignment: Text.AlignRight
-            topPadding: 2
-            bottomPadding: 2
-            anchors.fill: parent
+            verticalAlignment: Text.AlignVCenter
+            style: Text.Outline
+            styleColor: settings.color_glow
         }
 
         Text {
             id: widgetGlyph
-            y: 0
-            width: 40
-            height: 18
+            width: 16
+            height: parent.height
             color: settings.color_shape
             opacity: settings.altitude_second_opacity
-            text: "\u21a8"
+            text: "\uf338"
             anchors.left: parent.left
             anchors.leftMargin: 0
-            anchors.horizontalCenter: parent.horizontalCenter
             anchors.verticalCenter: parent.verticalCenter
             font.family: "Font Awesome 5 Free"
             font.pixelSize: 14
+            verticalAlignment: Text.AlignVCenter
+            style: Text.Outline
+            styleColor: settings.color_glow
         }
 
         antialiasing: true

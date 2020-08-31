@@ -8,7 +8,7 @@ import OpenHD 1.0
 
 BaseWidget {
     id: uplinkRSSIWidget
-    width: 92
+    width: 112
     height:24
 
     visible: settings.show_uplink_rssi
@@ -28,7 +28,7 @@ BaseWidget {
             height: 32
             Text {
                 id: opacityTitle
-                text: "Opacity"
+                text: qsTr("Transparency")
                 color: "white"
                 height: parent.height
                 font.bold: true
@@ -53,79 +53,106 @@ BaseWidget {
                 }
             }
         }
+        Item {
+            width: parent.width
+            height: 32
+            Text {
+                text: qsTr("Size")
+                color: "white"
+                height: parent.height
+                font.bold: true
+                font.pixelSize: detailPanelFontPixels
+                anchors.left: parent.left
+                verticalAlignment: Text.AlignVCenter
+            }
+            Slider {
+                id: uplink_rssi_size_Slider
+                orientation: Qt.Horizontal
+                from: .5
+                value: settings.uplink_rssi_size
+                to: 3
+                stepSize: .1
+                height: parent.height
+                anchors.rightMargin: 0
+                anchors.right: parent.right
+                width: parent.width - 96
+
+                onValueChanged: {
+                    settings.uplink_rssi_size = uplink_rssi_size_Slider.value
+                }
+            }
+        }
     }
 
     Item {
         id: widgetInner
 
         anchors.fill: parent
+        opacity: settings.uplink_rssi_opacity
+        scale: settings.uplink_rssi_size
 
         Text {
             id: uplink_icon
-            y: 0
             width: 24
             height: 24
             color: settings.color_shape
-            opacity: settings.uplink_rssi_opacity
             text: "\uf382"
-            anchors.right: uplink_rssi.left
-            anchors.rightMargin: 0
-            font.family: "Font Awesome 5 Free"
-            font.pixelSize: 14
+            anchors.left: parent.left
+            anchors.leftMargin: 0
             anchors.top: parent.top
-            styleColor: "#f7f7f7"
-            verticalAlignment: Text.AlignVCenter
-            z: 2.2
             anchors.topMargin: 0
+            font.family: "Font Awesome 5 Free"
+            font.pixelSize: 18
+            verticalAlignment: Text.AlignVCenter           
             horizontalAlignment: Text.AlignRight
+            style: Text.Outline
+            styleColor: settings.color_glow
         }
+
+        Text {
+            id: uplink_rssi            
+            height: 24
+            color: settings.color_text
+
+            text: OpenHD.current_signal_joystick_uplink == -127 ? qsTr("N/A") : OpenHD.current_signal_joystick_uplink
+            anchors.left: uplink_icon.right
+            anchors.leftMargin: 3
+            anchors.top: parent.top
+            horizontalAlignment: Text.AlignRight
+            font.pixelSize: 18
+            font.family: settings.font_text
+            verticalAlignment: Text.AlignVCenter
+            wrapMode: Text.NoWrap
+            elide: Text.ElideNone
+            clip: false
+            style: Text.Outline
+            styleColor: settings.color_glow
+        }
+
 
         Text {
             id: uplink_dbm
-            x: 568
-            y: 0
             width: 32
             height: 24
             color: settings.color_text
-            opacity: settings.uplink_rssi_opacity
-            text: "dBm"
-            anchors.right: parent.right
-            anchors.rightMargin: 0
+            text: qsTr("dBm")
+            anchors.left: uplink_rssi.right
+            anchors.leftMargin: 2
             anchors.top: parent.top
-            anchors.topMargin: 0
+            anchors.topMargin: 2
             horizontalAlignment: Text.AlignLeft
-            font.pixelSize: 10
+            font.pixelSize: 12
+            font.family: settings.font_text
             verticalAlignment: Text.AlignTop
             wrapMode: Text.NoWrap
-            elide: Text.ElideRight
+            elide: Text.ElideNone
             clip: false
-        }
-
-        Text {
-            id: uplink_rssi
-            x: 820
-            y: 0
-            width: 34
-            height: 24
-            color: settings.color_text
-            opacity: settings.uplink_rssi_opacity
-            text: OpenHD.current_signal_joystick_uplink == -127 ? qsTr("N/A") : OpenHD.current_signal_joystick_uplink
-            anchors.right: uplink_dbm.left
-            anchors.rightMargin: 2
-            anchors.top: parent.top
-            anchors.topMargin: 0
-            horizontalAlignment: Text.AlignRight
-            font.pixelSize: 14
-            verticalAlignment: Text.AlignVCenter
-            wrapMode: Text.NoWrap
-            elide: Text.ElideRight
-            clip: false
+            style: Text.Outline
+            styleColor: settings.color_glow
         }
 
         Text {
             id: uplink_lost_packet_cnt_rc
-            x: 0
-            y: 0
             width: 64
             height: 24
             color: settings.color_text
@@ -137,17 +164,18 @@ BaseWidget {
             anchors.rightMargin: 10
             verticalAlignment: Text.AlignVCenter
             font.pixelSize: 14
+            font.family: settings.font_text
             horizontalAlignment: Text.AlignRight
             wrapMode: Text.NoWrap
-            elide: Text.ElideRight
+            elide: Text.ElideNone
             clip: false
             visible: false
+            style: Text.Outline
+            styleColor: settings.color_glow
         }
 
         Text {
             id: uplink_lost_packet_cnt_telemetry_up
-            x: 0
-            y: 0
             width: 64
             height: 24
             color: settings.color_text
@@ -159,11 +187,14 @@ BaseWidget {
             anchors.rightMargin: 8
             horizontalAlignment: Text.AlignLeft
             font.pixelSize: 14
+            font.family: settings.font_text
             verticalAlignment: Text.AlignVCenter
             wrapMode: Text.NoWrap
             elide: Text.ElideRight
             clip: false
             visible: false
+            style: Text.Outline
+            styleColor: settings.color_glow
         }
     }
 }

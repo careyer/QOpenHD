@@ -22,60 +22,185 @@ BaseWidget {
     defaultVCenter: false
 
     hasWidgetDetail: true
-    widgetDetailComponent: Column {
-        Item {
-            width: parent.width
-            height: 32
-            Text {
-                id: opacityTitle
-                text: "Opacity"
-                color: "white"
-                height: parent.height
-                font.bold: true
-                font.pixelSize: detailPanelFontPixels
-                anchors.left: parent.left
-                verticalAlignment: Text.AlignVCenter
-            }
-            Slider {
-                id: controlOpacitySlider
-                orientation: Qt.Horizontal
-                from: .1
-                value: settings.control_opacity
-                to: 1
-                stepSize: .1
-                height: parent.height
-                anchors.rightMargin: 0
-                anchors.right: parent.right
-                width: parent.width - 96
 
-                onValueChanged: {
-                    settings.control_opacity = controlOpacitySlider.value
+    widgetDetailComponent: ScrollView {
+
+        contentHeight: controlSettingsColumn.height
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+        clip: true
+
+        ColumnLayout {
+            id: controlSettingsColumn
+            spacing:0
+            clip: true
+            Item {
+                width: 240
+                height: 32
+                Text {
+                    id: opacityTitle
+                    text: qsTr("Transparency")
+                    color: "white"
+                    height: parent.height
+                    font.bold: true
+                    font.pixelSize: detailPanelFontPixels
+                    anchors.left: parent.left
+                    verticalAlignment: Text.AlignVCenter
+                }
+                Slider {
+                    id: controlOpacitySlider
+                    orientation: Qt.Horizontal
+                    from: .1
+                    value: settings.control_opacity
+                    to: 1
+                    stepSize: .1
+                    height: parent.height
+                    anchors.rightMargin: 0
+                    anchors.right: parent.right
+                    width: parent.width - 96
+
+                    onValueChanged: {
+                        settings.control_opacity = controlOpacitySlider.value
+                    }
+                }
+            }
+            Item {
+                width: 240
+                height: 32
+                Text {
+                    text: qsTr("Size")
+                    color: "white"
+                    height: parent.height
+                    font.bold: true
+                    font.pixelSize: detailPanelFontPixels
+                    anchors.left: parent.left
+                    verticalAlignment: Text.AlignVCenter
+                }
+                Slider {
+                    id: control_size_Slider
+                    orientation: Qt.Horizontal
+                    from: .5
+                    value: settings.control_size
+                    to: 3
+                    stepSize: .1
+                    height: parent.height
+                    anchors.rightMargin: 0
+                    anchors.right: parent.right
+                    width: parent.width - 96
+
+                    onValueChanged: {
+                        settings.control_size = control_size_Slider.value
+                    }
+                }
+            }
+            Item {
+                width: 240
+                height: 32
+                Text {
+                    id: displaySwitcher
+                    text: qsTr("Show two controls")
+                    color: "white"
+                    height: parent.height
+                    font.bold: true
+                    font.pixelSize: detailPanelFontPixels
+                    anchors.left: parent.left
+                    verticalAlignment: Text.AlignVCenter
+                }
+                Switch {
+                    width: 32
+                    height: parent.height
+                    anchors.rightMargin: 6
+                    anchors.right: parent.right
+                    checked: settings.double_control
+                    onCheckedChanged: settings.double_control = checked
+                }
+            }
+            Item {
+                width: 240
+                height: 32
+                Text {
+                    text: qsTr("Reverse Pitch")
+                    color: "white"
+                    height: parent.height
+                    font.bold: true
+                    font.pixelSize: detailPanelFontPixels
+                    anchors.left: parent.left
+                    verticalAlignment: Text.AlignVCenter
+                }
+                Switch {
+                    width: 32
+                    height: parent.height
+                    anchors.rightMargin: 6
+                    anchors.right: parent.right
+                    checked: settings.control_rev_pitch
+                    onCheckedChanged: settings.control_rev_pitch = checked
+                }
+            }
+            Item {
+                width: 240
+                height: 32
+                Text {
+                    text: qsTr("Reverse Roll")
+                    color: "white"
+                    height: parent.height
+                    font.bold: true
+                    font.pixelSize: detailPanelFontPixels
+                    anchors.left: parent.left
+                    verticalAlignment: Text.AlignVCenter
+                }
+                Switch {
+                    width: 32
+                    height: parent.height
+                    anchors.rightMargin: 6
+                    anchors.right: parent.right
+                    checked: settings.control_rev_roll
+                    onCheckedChanged: settings.control_rev_roll = checked
+                }
+            }
+            Item {
+                width: 240
+                height: 32
+                Text {
+                    text: qsTr("Reverse yaw")
+                    color: "white"
+                    height: parent.height
+                    font.bold: true
+                    font.pixelSize: detailPanelFontPixels
+                    anchors.left: parent.left
+                    verticalAlignment: Text.AlignVCenter
+                }
+                Switch {
+                    width: 32
+                    height: parent.height
+                    anchors.rightMargin: 6
+                    anchors.right: parent.right
+                    checked: settings.control_rev_yaw
+                    onCheckedChanged: settings.control_rev_yaw = checked
+                }
+            }
+            Item {
+                width: 240
+                height: 32
+                Text {
+                    text: qsTr("Reverse Throttle")
+                    color: "white"
+                    height: parent.height
+                    font.bold: true
+                    font.pixelSize: detailPanelFontPixels
+                    anchors.left: parent.left
+                    verticalAlignment: Text.AlignVCenter
+                }
+                Switch {
+                    width: 32
+                    height: parent.height
+                    anchors.rightMargin: 6
+                    anchors.right: parent.right
+                    checked: settings.control_rev_throttle
+                    onCheckedChanged: settings.control_rev_throttle = checked
                 }
             }
         }
-        Item {
-            width: parent.width
-            height: 32
-            Text {
-                id: displaySwitcher
-                text: "Controls: Two / One"
-                color: "white"
-                height: parent.height
-                font.bold: true
-                font.pixelSize: detailPanelFontPixels
-                anchors.left: parent.left
-                verticalAlignment: Text.AlignVCenter
-            }
-            Switch {
-                width: 32
-                height: parent.height
-                anchors.rightMargin: 12
-                anchors.right: parent.right
-                checked: settings.control_version
-                onCheckedChanged: settings.control_version = checked
-            }
-        }
     }
+
 
     Item {
         id: widgetInner
@@ -83,6 +208,7 @@ BaseWidget {
         width: parent.width
         anchors.verticalCenter: parent.verticalCenter
         opacity: settings.control_opacity
+        scale: settings.control_size
 
         antialiasing: true
 
@@ -97,7 +223,19 @@ BaseWidget {
             width: parent.width
             anchors.verticalCenter: parent.verticalCenter
 
-            visible: settings.control_version ? true : false
+            visible: !settings.double_control
+
+            Rectangle {
+                id: circleGlow
+                anchors.centerIn: circle
+                width: (parent.width<parent.height?parent.width:parent.height)+2
+                height: width
+                color: "transparent"
+                radius: width*0.5
+
+                border.color: settings.color_glow
+                border.width: 3
+            }
 
             Rectangle {
                 id: circle
@@ -117,22 +255,18 @@ BaseWidget {
                 width: (parent.width<parent.height?parent.width:parent.height)*.1
                 height: width
                 color: settings.color_text
-                radius: width*0.5
+                //radius: width*0.5
 
-                visible: {
-                    if (OpenHD.control_throttle < 1000){
-                        console.log("Throttle control < 1000");
-                        left_control.visible=false;
-                    }else {
-                         left_control.visible=true;
-                    }
-                }
+                border.color: settings.color_glow
+                border.width: 1
+
+                visible: OpenHD.control_throttle < 1000 ? false : true
 
                 transformOrigin: Item.Center
 
                 transform: Translate {
-                    x: (OpenHD.control_yaw-1500)/10
-                    y: ((OpenHD.control_throttle-2000)/10)*-1 -50
+                    x: settings.control_rev_yaw ? ((OpenHD.control_yaw-1500)/10)*-1:(OpenHD.control_yaw-1500)/10
+                    y: settings.control_rev_throttle ? ((OpenHD.control_throttle-2000)/10)+50:((OpenHD.control_throttle-2000)/10)*-1 -50
                 }
 
             }
@@ -145,20 +279,16 @@ BaseWidget {
                 color: settings.color_text
                 radius: width*0.5
 
-                visible: {
-                    if (OpenHD.control_throttle < 1000){
-                        console.log("Throttle control < 1000");
-                        right_control.visible=false;
-                    }else {
-                         right_control.visible=true;
-                    }
-                }
+                border.color: settings.color_glow
+                border.width: 1
+
+                visible: OpenHD.control_throttle < 1000 ? false : true
 
                 transformOrigin: Item.Center
 
                 transform: Translate {
-                    x: (OpenHD.control_roll-1500)/10
-                    y: (OpenHD.control_pitch-1500)/10
+                    x: settings.control_rev_roll ? ((OpenHD.control_roll-1500)/10)*-1:(OpenHD.control_roll-1500)/10
+                    y: settings.control_rev_pitch ? ((OpenHD.control_pitch-1500)/10)*-1:(OpenHD.control_pitch-1500)/10
                 }
 
             }
@@ -172,7 +302,21 @@ BaseWidget {
             width: parent.width
             anchors.verticalCenter: parent.verticalCenter
 
-            visible: settings.control_version ? false : true
+            visible: settings.double_control
+
+            Rectangle {
+                id: leftCircleGlow
+
+                anchors.centerIn: leftCircle
+                width: ((parent.width<parent.height?parent.width:parent.height)/2)+2
+                height: width
+                color: "transparent"
+                radius: width*0.5
+
+
+                border.color: settings.color_glow
+                border.width: 3
+            }
 
             Rectangle {
                 id: leftCircle
@@ -185,7 +329,20 @@ BaseWidget {
 
 
                 border.color: settings.color_shape
-                border.width: .5
+                border.width: 1
+            }
+
+            Rectangle {
+                id: rightCircleGlow
+
+                anchors.centerIn: rightCircle
+                width: ((parent.width<parent.height?parent.width:parent.height)/2)+2
+                height: width
+                color: "transparent"
+                radius: width*0.5
+
+                border.color: settings.color_glow
+                border.width: 3
             }
 
             Rectangle {
@@ -199,7 +356,7 @@ BaseWidget {
                 radius: width*0.5
 
                 border.color: settings.color_shape
-                border.width: .5
+                border.width: 1
             }
 
             Rectangle {
@@ -208,22 +365,17 @@ BaseWidget {
                 width: (parent.width<parent.height?parent.width:parent.height)*.1
                 height: width
                 color: settings.color_text
+                border.color: settings.color_glow
+                border.width: 1
                 radius: width*0.5
 
-                visible: {
-                    if (OpenHD.control_throttle < 1000){
-                        console.log("Throttle control < 1000");
-                        left_control.visible=false;
-                    }else {
-                         left_control.visible=true;
-                    }
-                }
+                visible: OpenHD.control_throttle < 1000 ? false : true
 
                 transformOrigin: Item.Center
 
                 transform: Translate {
-                    x: ((OpenHD.control_yaw-1500)/10)/2
-                    y: (((OpenHD.control_throttle-2000)/10)*-1 -50)/2
+                    x: settings.control_rev_yaw ? (((OpenHD.control_yaw-1500)/10)/2)*-1:((OpenHD.control_yaw-1500)/10)/2
+                    y: settings.control_rev_throttle ? ((((OpenHD.control_throttle-2000)/10)*-1 -50)/2)*-1:(((OpenHD.control_throttle-2000)/10)*-1 -50)/2
                 }
 
             }
@@ -234,48 +386,20 @@ BaseWidget {
                 width: (parent.width<parent.height?parent.width:parent.height)*.1
                 height: width
                 color: settings.color_text
+                border.color: settings.color_glow
+                border.width: 1
                 radius: width*0.5
 
-                visible: {
-                    if (OpenHD.control_throttle < 1000){
-                        console.log("Throttle control < 1000");
-                        right_control.visible=false;
-                    }else {
-                         right_control.visible=true;
-                    }
-                }
+                visible: OpenHD.control_throttle < 1000 ? false : true
 
                 transformOrigin: Item.Center
 
                 transform: Translate {
-                    x: ((OpenHD.control_roll-1500)/10)/2
-                    y: ((OpenHD.control_pitch-1500)/10)/2
+                    x: settings.control_rev_roll ? (((OpenHD.control_roll-1500)/10)/2)*-1:((OpenHD.control_roll-1500)/10)/2
+                    y: settings.control_rev_pitch ? (((OpenHD.control_pitch-1500)/10)/2)*-1:((OpenHD.control_pitch-1500)/10)/2
                 }
 
             }
         }
-
-        Glow {
-            anchors.fill: doubleCircle
-            visible: settings.control_version ? false : true
-            radius: 2
-            samples: 17
-            color: settings.color_glow
-            opacity: settings.control_opacity
-            source: doubleCircle
-        }
-
-        Glow {
-            anchors.fill: singleCircle
-            visible: settings.control_version ? true : false
-            radius: 3
-            samples: 17
-            color: settings.color_glow
-            opacity: settings.control_opacity
-            source: circle
-        }
-
-
-
     }
 }

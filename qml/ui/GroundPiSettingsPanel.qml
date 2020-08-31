@@ -44,13 +44,32 @@ GroundPiSettingsPanelForm {
                 return;
             }
 
+            /*
+             * Don't fetch settings if the drone is armed, this is an early implementation of
+             * a "radio silence" feature to avoid doing any unnecessary automatic tasks that
+             * could cause interference or affect the video reception in any way.
+             *
+             * The microservice code will have a more general radio silence switch to eliminate
+             * unnecessary air traffic, but this settings timer is a big one due to how much CPU
+             * time the settings processing code uses right now, and it's all in the main thread.
+             */
+            if (OpenHD.armed) {
+                return;
+            }
+
+            /*
+             * Don't fetch settings if the settings panel is already open, this avoids changing
+             * settings UI controls while the user is trying to set them.
+             */
+            if (settings_popup.visible) {
+                return;
+            }
+
             var currentTime = (new Date).getTime();
             if (currentTime - lastSettingsLoad > 60000) {
-                if (!settings_popup.opened) {
-                    lastSettingsLoad = currentTime;
-                    console.log("Settings panel not open, triggering load");
-                    openHDSettings.fetchSettings();
-                }
+                lastSettingsLoad = currentTime;
+                console.log("Auto-fetching ground station settings");
+                openHDSettings.fetchSettings();
             }
         }
     }
@@ -102,11 +121,11 @@ GroundPiSettingsPanelForm {
     Connections {
         target: openHDSettings
 
-        onSavingSettingsStart: {
+        function onSavingSettingsStart() {
             localMessage("saving ground settings...", 2);
         }
 
-        onSavingSettingsFinished: {
+        function onSavingSettingsFinished() {
             localMessage("ground settings saved", 2);
             showSavedCheckmark = true
             savedTimer.start()
@@ -115,7 +134,7 @@ GroundPiSettingsPanelForm {
             }
         }
 
-        onSavingSettingsFailed: {
+        function onSavingSettingsFailed() {
             localMessage("%1 ground settings did not save!".arg(failCount), 4);
             // todo: show failure message instead
             showSavedCheckmark = true
@@ -165,7 +184,7 @@ GroundPiSettingsPanelForm {
     Connections {
         target: openHDSettings
 
-        onAllSettingsChanged: {
+        function onAllSettingsChanged() {
             /*
              * Clear the local ListModels for each tab, the ListView in each tab uses these to decide
              * what to draw.

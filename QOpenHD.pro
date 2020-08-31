@@ -1,12 +1,18 @@
-!equals(QT_MAJOR_VERSION, 5) | !greaterThan(QT_MINOR_VERSION, 12) {
-    error("Unsupported Qt version, 5.12+ is required")
-}
-
 BASEDIR = $$IN_PWD
 
 LANGUAGE = C++
-CONFIG += c++11
+CONFIG += c++17
 CONFIG+=sdk_no_version_check
+TRANSLATIONS = translations/QOpenHD_en.ts \
+               translations/QOpenHD_de.ts \
+               translations/QOpenHD_ru.ts \
+               translations/QOpenHD_nl.ts \
+               translations/QOpenHD_es.ts \
+               translations/QOpenHD_fr.ts \
+               translations/QOpenHD_zh.ts \
+               translations/QOpenHD_it.ts \
+               translations/QOpenHD_ro.ts
+
 
 include(platforms.pri)
 
@@ -35,6 +41,14 @@ CONFIG(debug, debug|release) {
     DEFINES += QMLJSDEBUGGER
 }
 
+CONFIG += qmltypes
+QML_IMPORT_NAME = OpenHD
+QML_IMPORT_MAJOR_VERSION = 1
+
+OBJECTS_DIR  = $${OUT_PWD}/obj
+MOC_DIR      = $${OUT_PWD}/moc
+UI_DIR       = $${OUT_PWD}/ui
+RCC_DIR      = $${OUT_PWD}/rcc
 
 QT += qml quick concurrent opengl gui
 QT += positioning location
@@ -51,28 +65,30 @@ INCLUDEPATH += $$PWD/lib/GeographicLib-1.50/include
 
 
 SOURCES += \
-    lib/h264bitstream/h264_avcc.c \
-    lib/h264bitstream/h264_nal.c \
-    lib/h264bitstream/h264_sei.c \
-    lib/h264bitstream/h264_stream.c \
     src/FPS.cpp \
+    src/altitudeladder.cpp \
+    src/blackboxmodel.cpp \
     src/frskytelemetry.cpp \
     src/gpiomicroservice.cpp \
+    src/headingladder.cpp \
     src/localmessage.cpp \
     src/ltmtelemetry.cpp \
     src/main.cpp \
+    src/managesettings.cpp \
+    src/markermodel.cpp \
     src/mavlinkbase.cpp \
     src/mavlinktelemetry.cpp \
+    src/migration.cpp \
     src/msptelemetry.cpp \
     src/openhd.cpp \
     src/openhdpi.cpp \
     src/openhdrc.cpp \
     src/openhdsettings.cpp \
     src/openhdtelemetry.cpp \
-    src/opensky.cpp \
     src/powermicroservice.cpp \
     src/qopenhdlink.cpp \
     src/smartporttelemetry.cpp \
+    src/speedladder.cpp \
     src/statuslogmodel.cpp \
     src/statusmicroservice.cpp \
     src/util.cpp \
@@ -82,9 +98,13 @@ RESOURCES += qml/qml.qrc
 
 HEADERS += \
     inc/FPS.h \
+    inc/altitudeladder.h \
+    inc/blackboxmodel.h \
     inc/gpiomicroservice.h \
+    inc/headingladder.h \
+    inc/managesettings.h \
+    inc/markermodel.h \
     inc/mavlinkbase.h \
-    inc/opensky.h \
     inc/powermicroservice.h \
     inc/sharedqueue.h \
     inc/constants.h \
@@ -102,15 +122,12 @@ HEADERS += \
     inc/openhdtelemetry.h \
     inc/qopenhdlink.h \
     inc/smartporttelemetry.h \
+    inc/speedladder.h \
     inc/statuslogmodel.h \
     inc/statusmicroservice.h \
     inc/util.h \
     inc/vectortelemetry.h \
-    inc/wifibroadcast.h \
-    lib/h264bitstream/bs.h \
-    lib/h264bitstream/h264_avcc.h \
-    lib/h264bitstream/h264_sei.h \
-    lib/h264bitstream/h264_stream.h
+    inc/wifibroadcast.h
 
 DISTFILES += \
     android/AndroidManifest.xml \
@@ -132,8 +149,10 @@ DISTFILES += \
     android/src/org/freedesktop/gstreamer/androidmedia/GstAhsCallback.java \
     android/src/org/freedesktop/gstreamer/androidmedia/GstAmcOnFrameAvailableListener.java \
     qml/qtquickcontrols2.conf \
-    qml/ui/qmldir
-
+    qml/ui/qmldir \
+    translations/QOpenHD_it.ts \
+    translations/QOpenHD_ro.ts \
+    translations/QOpenHD_zh.ts
 
 
 SOURCES += \
@@ -191,10 +210,8 @@ iOSBuild {
     CONFIG += EnablePiP
     CONFIG += EnableVideoRender
     CONFIG += EnableLink
-    CONFIG += EnableCharts
+    #CONFIG += EnableCharts
 
-    #QMAKE_POST_LINK += /usr/libexec/PlistBuddy -c \"Set :CFBundleShortVersionString $$APPLE_BUILD\" $$DESTDIR/$${TARGET}.app/Contents/Info.plist
-    #QMAKE_POST_LINK += && /usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $$APPLE_BUILD\" $$DESTDIR/$${TARGET}.app/Contents/Info.plist
     app_launch_images.files = $$PWD/icons/LaunchScreen.png $$files($$PWD/icons/LaunchScreen.storyboard)
     QMAKE_BUNDLE_DATA += app_launch_images
 
@@ -209,6 +226,12 @@ iOSBuild {
         SOURCES += \
             src/openhdapplevideo.cpp
     }
+
+    HEADERS += \
+        src/appleplatform.h
+
+    SOURCES += \
+        src/appleplatform.mm
 
     EnableGStreamer {
         DEFINES += GST_GL_HAVE_WINDOW_EAGL=1
@@ -230,7 +253,7 @@ MacBuild {
     CONFIG += EnablePiP
     CONFIG += EnableVideoRender
     CONFIG += EnableLink
-    CONFIG += EnableCharts
+    #CONFIG += EnableCharts
 
     EnableVideoRender {
         QT += multimedia
@@ -240,6 +263,12 @@ MacBuild {
 
         SOURCES += \
             src/openhdapplevideo.cpp
+    }
+
+    EnableGStreamer {
+        DEFINES += GST_GL_HAVE_PLATFORM_CGL=1
+        DEFINES += GST_GL_HAVE_WINDOW_COCOA=1
+        DEFINES += HAVE_QT_MAC
     }
 }
 
@@ -251,7 +280,8 @@ LinuxBuild {
     CONFIG += EnablePiP
     CONFIG += EnableGStreamer
     CONFIG += EnableLink
-    CONFIG += EnableCharts
+    #CONFIG += EnableCharts
+    CONFIG += EnableADSB
 
     message("LinuxBuild - config")
 }
@@ -265,7 +295,8 @@ RaspberryPiBuild {
     #CONFIG += EnableMainVideo
     CONFIG += EnablePiP
     CONFIG += EnableLink
-    CONFIG += EnableCharts
+    #CONFIG += EnableCharts
+    CONFIG += EnableSpeech
 
     CONFIG += EnableVideoRender
 
@@ -291,7 +322,7 @@ WindowsBuild {
     #CONFIG +- EnablePiP
     CONFIG += EnableLink
     CONFIG += EnableGStreamer
-    CONFIG += EnableCharts
+    #CONFIG += EnableCharts
 
     DEFINES += GST_GL_HAVE_WINDOW_WIN32=1
     DEFINES += GST_GL_HAVE_PLATFORM_WGL=1
@@ -307,8 +338,8 @@ AndroidBuild {
     CONFIG += EnableMainVideo
     CONFIG += EnablePiP
     CONFIG += EnableLink
-    CONFIG += EnableGStreamer
-    CONFIG += EnableCharts
+    CONFIG += EnableVideoRender
+    #CONFIG += EnableCharts
     EnableGStreamer {
         OTHER_FILES += \
             $$PWD/android/src/org/openhd/OpenHDActivity.java
@@ -318,8 +349,56 @@ AndroidBuild {
         DEFINES += HAVE_QT_ANDROID
     }
 
+    EnableVideoRender {
+        LIBS += -lmediandk
+        LIBS += -landroid
+        QT += multimedia
 
+        HEADERS += \
+            inc/openhdandroidrender.h \
+            inc/openhdandroidvideo.h \
+            inc/androidsurfacetexture.h
+
+
+        SOURCES += \
+            src/openhdandroidrender.cpp \
+            src/openhdandroidvideo.cpp \
+            src/androidsurfacetexture.cpp
+
+        OTHER_FILES += \
+            $$PWD/android/src/org/openhd/OpenHDActivity.java \
+            $$PWD/android/src/org/openhd/SurfaceTextureListener.java
+    }
     QT += androidextras
+
+    #Androidx86Build {
+    #    ANDROID_EXTRA_LIBS += $$PWD/lib/android/openssl/latest/x86/libcrypto_1_1.so \
+    #                          $$PWD/lib/android/openssl/latest/x86/libssl_1_1.so
+    #} AndroidARM64Build {
+    #    ANDROID_EXTRA_LIBS += $$PWD/lib/android/openssl/latest/arm64/libcrypto_1_1.so \
+    #                          $$PWD/lib/android/openssl/latest/arm64/libssl_1_1.so
+    #} else {
+        ANDROID_EXTRA_LIBS += $$PWD/lib/android/openssl/latest/arm/libcrypto_1_1.so \
+                              $$PWD/lib/android/openssl/latest/arm/libssl_1_1.so
+    #}
+}
+
+
+EnableBlackbox {
+    message("EnableBlackbox")
+    DEFINES += ENABLE_BLACKBOX
+}
+
+
+EnableADSB {
+    message("EnableADSB")
+    DEFINES += ENABLE_ADSB
+
+    SOURCES += \
+            src/opensky.cpp
+    HEADERS += \
+            inc/opensky.h
+
 }
 
 EnableCharts {
@@ -362,7 +441,16 @@ EnableVideoRender {
 
     SOURCES += \
         src/openhdvideo.cpp \
-        src/openhdrender.cpp
+        src/openhdrender.cpp \
+        $$PWD/lib/h264/h264_bitstream_parser.cc \
+        $$PWD/lib/h264/h264_common.cc \
+        $$PWD/lib/h264/pps_parser.cc \
+        $$PWD/lib/h264/sps_parser.cc \
+        $$PWD/lib/h264/bit_buffer.cc \
+        $$PWD/lib/h264/checks.cc \
+        $$PWD/lib/h264/zero_memory.cc
+
+    INCLUDEPATH += $$PWD/lib/h264/
 }
 
 EnablePiP {
@@ -373,7 +461,6 @@ EnablePiP {
 EnableLink {
     message("EnableLink")
     DEFINES += ENABLE_LINK
-    HEADERS += lib/json.hpp
 }
 
 
@@ -432,11 +519,7 @@ installer {
         OTHER_FILES += tools/qopenhd_installer.nsi
         QMAKE_POST_LINK +=$${PWD}/win_deploy_sdl.cmd \"$$DESTDIR_WIN\" \"$$PWD\QJoysticks\lib\SDL\bin\windows\msvc\x86\" $$escape_expand(\\n)
 
-        QMAKE_POST_LINK += $$escape_expand(\\n) c:\Qt\5.14.2\msvc2017\bin\windeployqt.exe --qmldir $${PWD}/qml \"$${DESTDIR_WIN}\\QOpenHD.exe\"
-
-        #QMAKE_POST_LINK += && $$escape_expand(\\n) $$QMAKE_COPY \"C:\\Windows\\System32\\msvcp140.dll\"  \"$$DESTDIR_WIN\"
-        #QMAKE_POST_LINK += && $$escape_expand(\\n) $$QMAKE_COPY \"C:\\Windows\\System32\\msvcr140.dll\"  \"$$DESTDIR_WIN\"
-        #QMAKE_POST_LINK += && $$escape_expand(\\n) $$QMAKE_COPY \"C:\\Windows\\System32\\msvcruntime140.dll\"  \"$$DESTDIR_WIN\"
+        QMAKE_POST_LINK += $$escape_expand(\\n) c:\Qt\5.15.0\msvc2019\bin\windeployqt.exe --qmldir $${PWD}/qml \"$${DESTDIR_WIN}\\QOpenHD.exe\"
 
         QMAKE_POST_LINK += $$escape_expand(\\n) cd $$BASEDIR_WIN && $$quote("\"C:\\Program Files \(x86\)\\NSIS\\makensis.exe\"" /DINSTALLER_ICON="\"$${PWD}\icons\openhd.ico\"" /DHEADER_BITMAP="\"$${PWD}\icons\LaunchScreen.png\"" /DAPPNAME="\"QOpenHD\"" /DEXENAME="\"$${TARGET}\"" /DORGNAME="\"Open.HD\"" /DDESTDIR=$${DESTDIR} /NOCD "\"/XOutFile $${DESTDIR_WIN}\\QOpenHD-$${QOPENHD_VERSION}.exe\"" "$$PWD/tools/qopenhd_installer.nsi")
 
@@ -444,8 +527,6 @@ installer {
     AndroidBuild {
         QMAKE_POST_LINK += mkdir -p $${DESTDIR}/package
         QMAKE_POST_LINK += && make install INSTALL_ROOT=$${DESTDIR}/android-build/
-        #QMAKE_POST_LINK += && androiddeployqt --input $${DESTDIR}/android-libQOpenHD.so-deployment-settings.json --output $${DESTDIR}/android-build --deployment bundled --gradle --sign $${HOME}/.android/android_release.keystore dagar --storepass $$(ANDROID_STOREPASS)
-        #QMAKE_POST_LINK += && cp $${DESTDIR}/android-build/build/outputs/apk/android-build-release-signed.apk $${DESTDIR}/package/QOpenHD-$$QOPENHD_VERSION.apk
     }
 }
 
@@ -460,8 +541,4 @@ contains(ANDROID_TARGET_ARCH,arm64-v8a) {
     ANDROID_PACKAGE_SOURCE_DIR = \
         $$PWD/android
 }
-
-
-
-
 

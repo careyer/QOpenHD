@@ -174,7 +174,7 @@ These are only a rough outline rather than exhaustive build steps (that would fi
 
 The build process is dependent on which platform you're building *on* and which platform you're building *for*. It can be quite complicated and irritating when something doesn't work right, or if you aren't familiar with all these development frameworks and toolchains.
 
-In general, you'll need Qt 5.14.2+ and the GStreamer development package, specifically version 1.14.4.
+In general, you'll need Qt 5.15.0+ and the GStreamer development package on some platforms, specifically version 1.14.4.
 
 #### Mac
 
@@ -182,9 +182,17 @@ In general, you'll need Qt 5.14.2+ and the GStreamer development package, specif
 
 2. Install Qt using the [Qt online installer](https://www.qt.io/download-qt-installer)
 
-3. Have the Qt Installer download Qt 5.14.2+ for Mac, and Qt Creator
+3. Have the Qt Installer download Qt 5.15.0+ for Mac, and Qt Creator
 
-Once you have those installed you can open `QOpenHD.pro` with Qt Creator, build and run it.
+4. Clone the source code:
+
+    git clone --recurse-submodules https://github.com/OpenHD/QOpenHD.git
+
+If you aren't using git from the command line but using a GUI git client instead, make sure
+you update the submodules or QOpenHD will not build properly.
+    
+
+Once you have those steps done you can open `QOpenHD.pro` with Qt Creator, build and run it.
 
 #### iOS
 
@@ -192,35 +200,54 @@ Once you have those installed you can open `QOpenHD.pro` with Qt Creator, build 
 
 2. Install Qt using the [Qt online installer](https://www.qt.io/download-qt-installer)
 
-3. Have the Qt Installer download Qt 5.14.2+ for iOS, and Qt Creator
+3. Have the Qt Installer download Qt 5.15.0+ for iOS, and Qt Creator
 
 4. You will need an Apple developer membership to install directly to an iOS device
 
-Once you have those installed you can open `QOpenHD.pro` with Qt Creator, build and run it.
+5. Clone the source code:
+
+    git clone --recurse-submodules https://github.com/OpenHD/QOpenHD.git
+
+If you aren't using git from the command line but using a GUI git client instead, make sure
+you update the submodules or QOpenHD will not build properly.
+
+Once you have those steps done you can open `QOpenHD.pro` with Qt Creator, build and run it.
 
 #### Windows
 
-1. Install Visual Studio 2017 (free)
+1. Install Visual Studio 2019 (free)
 
 2. Install Qt using the [Qt online installer](https://www.qt.io/download-qt-installer)
 
-3. Have the Qt Installer download Qt 5.14.2+ and Qt Creator
+3. Have the Qt Installer download Qt 5.15.0+ and Qt Creator
 
-4. Download the [GStreamer development kit](https://gstreamer.freedesktop.org/download/) for Windows, both the Runtime and Development packages. You *must use* the 32-bit MinGW packages, NOT the one labeled MSVC.
+4. Download the [GStreamer development kit](https://gstreamer.freedesktop.org/download/) for Windows, both the Runtime and Development packages. You *must use* the 32-bit MinGW packages, NOT the one labeled MSVC, and it should be version 1.14.4.
 
-Once you have those installed you can open `QOpenHD.pro` with Qt Creator, build and run it.
+5. Clone the source code:
+
+    git clone --recurse-submodules https://github.com/OpenHD/QOpenHD.git
+
+If you aren't using git from the command line but using a GUI git client instead, make sure
+you update the submodules or QOpenHD will not build properly.
+
+Once you have those steps done you can open `QOpenHD.pro` with Qt Creator, build and run it.
 
 #### Linux
 
-1. Install Qt using the package manager (if they have a new enough version of Qt), or the [Qt online installer](https://www.qt.io/download-qt-installer)
+1. Install Qt using the [Qt online installer](https://www.qt.io/download-qt-installer)
 
-If installing Qt from a package manager on Ubuntu, this would be `apt install qt5-default qtquickcontrols2-5-dev libqt5quick5 libqt5qml5 qtdeclarative5-dev libqt5x11extras5-dev qtquickcontrols2-5-dev qml-module-qtquick-controls2 qml-module-qtquick-layouts qml-module-qtgraphicaleffects qml-module-qt-labs-settings qml-module-qtquick-controls-styles-breeze qml-module-qtquick-shapes qml-module-qtlocation qml-module-qtpositioning qml-module-qtquick-dialogs`
-
-2. If using the Qt online installer, have it download Qt 5.14.2+ for Linux 
+2. Have it download Qt 5.15.0+ for Linux 
 
 3. Install GStreamer development packages from the package manager. On Ubuntu this would be `apt install gstreamer1.0-gl libgstreamer1.0-dev libgstreamer-plugins-good1.0-dev gstreamer1.0-plugins-good libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-qt`. Those should pull in any others that are needed as well.
 
-You can then open `QOpenHD.pro` using Qt Creator, build and run the app.
+4. Clone the source code:
+
+    git clone --recurse-submodules https://github.com/OpenHD/QOpenHD.git
+
+If you aren't using git from the command line but using a GUI git client instead, make sure
+you update the submodules or QOpenHD will not build properly.
+
+Once you have those steps done you can open `QOpenHD.pro` with Qt Creator, build and run it.
 
 #### Android
 
@@ -230,11 +257,14 @@ You can then open `QOpenHD.pro` using Qt Creator, build and run the app.
 
 3. Install Qt using the [Qt online installer](https://www.qt.io/download-qt-installer)
 
-4. Have the Qt Installer download Qt 5.14.2+ *for Android*, not for the OS you're building on.
+4. Have the Qt Installer download Qt 5.15.0+ *for Android*, not for the OS you're building on.
 
-5. Download the [GStreamer development kit](https://gstreamer.freedesktop.org/download/) for Android 1.14.4
+5. Clone the source code:
 
-6. Unzip the GStreamer archive inside the QOpenHD directory, you should end up with a directory called `gstreamer-1.0-android-universal-1.14.4` in there.
+    git clone --recurse-submodules https://github.com/OpenHD/QOpenHD.git
+
+If you aren't using git from the command line but using a GUI git client instead, make sure
+you update the submodules or QOpenHD will not build properly.
 
 You can then open `QOpenHD.pro` using Qt Creator and set up the Android kit (left side, click the Projects tab), build and run the app on your device.
 

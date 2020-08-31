@@ -28,7 +28,7 @@ BaseWidget {
             height: 32
             Text {
                 id: opacityTitle
-                text: "Opacity"
+                text: qsTr("Transparency")
                 color: "white"
                 height: parent.height
                 font.bold: true
@@ -53,12 +53,42 @@ BaseWidget {
                 }
             }
         }
+        Item {
+            width: parent.width
+            height: 32
+            Text {
+                text: qsTr("Size")
+                color: "white"
+                height: parent.height
+                font.bold: true
+                font.pixelSize: detailPanelFontPixels
+                anchors.left: parent.left
+                verticalAlignment: Text.AlignVCenter
+            }
+            Slider {
+                id: air_status_size_Slider
+                orientation: Qt.Horizontal
+                from: .5
+                value: settings.air_status_size
+                to: 3
+                stepSize: .1
+                height: parent.height
+                anchors.rightMargin: 0
+                anchors.right: parent.right
+                width: parent.width - 96
+
+                onValueChanged: {
+                    settings.air_status_size = air_status_size_Slider.value
+                }
+            }
+        }
     }
 
     Item {
         id: widgetInner
 
         anchors.fill: parent
+        scale: settings.air_status_size
 
         Text {
             id: chip_air
@@ -76,6 +106,8 @@ BaseWidget {
             font.pixelSize: 14
             horizontalAlignment: Text.AlignRight
             elide: Text.ElideRight
+            style: Text.Outline
+            styleColor: settings.color_glow
         }
 
 
@@ -83,9 +115,9 @@ BaseWidget {
             id: cpuload_air
             x: 0
             y: 0
-            width: 34
+            width: 36
             height: 24
-            color: settings.color_text
+            color: OpenHD.cpuload_air >= 70 ? (OpenHD.cpuload_air >= 80 ? "#ff0000" : "#fbfd15") : settings.color_text
             opacity: settings.air_status_opacity
             text: Number(OpenHD.cpuload_air).toLocaleString(Qt.locale(), 'f', 0) + "%";
             anchors.right: temp_air.left
@@ -93,16 +125,19 @@ BaseWidget {
             anchors.verticalCenter: parent.verticalCenter
             verticalAlignment: Text.AlignVCenter
             font.pixelSize: 14
+            font.family: settings.font_text
             horizontalAlignment: Text.AlignRight
             elide: Text.ElideRight
+            style: Text.Outline
+            styleColor: settings.color_glow
         }
         Text {
             id: temp_air
             x: 0
             y: 4
-            width: 34
+            width: 36
             height: 24
-            color: settings.color_text
+            color: OpenHD.temp_air >= 65 ? (OpenHD.temp_air >= 75 ? "#ff0000" : "#fbfd15") : settings.color_text
             opacity: settings.air_status_opacity
             text: Number(OpenHD.temp_air).toLocaleString(Qt.locale(), 'f', 0) + "°";
             anchors.verticalCenter: parent.verticalCenter
@@ -110,8 +145,11 @@ BaseWidget {
             anchors.rightMargin: 0
             verticalAlignment: Text.AlignVCenter
             font.pixelSize: 14
+            font.family: settings.font_text
             horizontalAlignment: Text.AlignRight
             elide: Text.ElideRight
+            style: Text.Outline
+            styleColor: settings.color_glow
         }
     }
 }

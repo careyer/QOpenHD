@@ -1,6 +1,7 @@
 import QtQuick 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
+import QtGraphicalEffects 1.12
 
 import Qt.labs.settings 1.0
 
@@ -10,47 +11,35 @@ import "../ui" as Ui
 
 import "../ui/elements"
 
-Item {
-    id: element2
+Rectangle {
     Layout.fillHeight: true
     Layout.fillWidth: true
+    color: "#eaeaea"
 
-    Text {
-        text: "OpenHD Status Log"
-        font.pixelSize: 16
-        font.bold: true
-        color: "#515151"
+
+    Rectangle {
+        id: statusLog
+        color: "#2a2a2a"
 
         anchors.top: parent.top
         anchors.topMargin: 12
         anchors.left: parent.left
-        anchors.leftMargin: 24
-    }
-
-    Rectangle {
-        color: "#ff2a2a2a"
-        border.width: 1
-        border.color: "white"
-        clip: true
-
-        anchors.top: parent.top
-        anchors.topMargin: 48
-        anchors.left: parent.left
-        anchors.leftMargin: 24
+        anchors.leftMargin: 12
         anchors.right: parent.right
-        anchors.rightMargin: 24
+        anchors.rightMargin: 12
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 36
 
         StatusView {
             anchors.fill: parent
+            clip: true
         }
     }
 
     Label {
         id: ohdLabel
         color: "black"
-        text: "Last openhd heartbeat: " + (OpenHD.last_openhd_heartbeat >= 0 && OpenHD.last_openhd_heartbeat <= 300000 ? OpenHD.last_openhd_heartbeat + "ms" : "N/A")
+        text: qsTr("Last RSSI: ") + (OpenHD.last_openhd_heartbeat >= 0 && OpenHD.last_openhd_heartbeat <= 300000 ? OpenHD.last_openhd_heartbeat + "ms" : "N/A")
         font.pixelSize: 12
         anchors.bottom: parent.bottom
         anchors.left: parent.left
@@ -60,16 +49,56 @@ Item {
         z: 1.1
     }
 
-    Label {
-        id: mavLabel
-        color: "black"
-        text: "Last telemetry heartbeat: " + (OpenHD.last_telemetry_heartbeat >= 0 && OpenHD.last_telemetry_heartbeat <= 300000 ? OpenHD.last_telemetry_heartbeat  + "ms": "N/A")
-        font.pixelSize: 12
+    Row {
         anchors.bottom: parent.bottom
         anchors.right: parent.right
         anchors.bottomMargin: 12
-        anchors.rightMargin: 142
+        anchors.rightMargin: 12
+        spacing: 0
 
-        z: 1.1
+        Label {
+            color: "black"
+            text: qsTr("  HB: ") + (OpenHD.last_telemetry_heartbeat >= 0 && OpenHD.last_telemetry_heartbeat <= 300000 ? OpenHD.last_telemetry_heartbeat: "N/A")
+            font.pixelSize: 12
+            font.family: "monospace"
+            width: 64
+            z: 1.1
+        }
+
+        Label {
+            color: "black"
+            text: qsTr(" | ATT: ") + (OpenHD.last_telemetry_attitude >= 0 && OpenHD.last_telemetry_attitude <= 300000 ? OpenHD.last_telemetry_attitude: "N/A")
+            font.pixelSize: 12
+            font.family: "monospace"
+            width: 64
+            z: 1.1
+        }
+
+        Label {
+            color: "black"
+            text: qsTr(" | BAT: ") + (OpenHD.last_telemetry_battery >= 0 && OpenHD.last_telemetry_battery <= 300000 ? OpenHD.last_telemetry_battery: "N/A")
+            font.pixelSize: 12
+            font.family: "monospace"
+            width: 64
+            z: 1.1
+        }
+
+        Label {
+            color: "black"
+            text: qsTr(" | GPS: ") + (OpenHD.last_telemetry_gps >= 0 && OpenHD.last_telemetry_gps <= 300000 ? OpenHD.last_telemetry_gps: "N/A")
+            font.pixelSize: 12
+            font.family: "monospace"
+            width: 64
+            z: 1.1
+        }
+
+        Label {
+            color: "black"
+            text: qsTr(" | VFR: ") + (OpenHD.last_telemetry_vfr >= 0 && OpenHD.last_telemetry_vfr <= 300000 ? OpenHD.last_telemetry_vfr: "N/A")
+            font.pixelSize: 12
+            font.family: "monospace"
+            width: 64
+            z: 1.1
+        }
     }
 }

@@ -154,8 +154,6 @@ QString sub_mode_from_enum(SUB_MODE mode) {
             return "Surface";
        case SUB_MODE_POSHOLD:
             return "Position Hold";
-       case SUB_MODE_ENUM_END:
-            break;
     }
     return "Unknown";
 }
@@ -182,8 +180,6 @@ QString rover_mode_from_enum(ROVER_MODE mode) {
             return "Loiter";
        case ROVER_MODE_GUIDED:
             return "Guided";
-       case ROVER_MODE_ENUM_END:
-            break;
     }
     return "Unknown";
 }
@@ -228,8 +224,6 @@ QString copter_mode_from_enum(COPTER_MODE mode) {
             return "Avoid ADSB";
        case COPTER_MODE_GUIDED:
             return "Guided";
-       case COPTER_MODE_ENUM_END:
-            break;
     }
     return "Unknown";
 }
@@ -280,8 +274,6 @@ QString plane_mode_from_enum(PLANE_MODE mode) {
             return "QRTL";
        case PLANE_MODE_QAUTOTUNE:
             return "QAutotune";
-       case PLANE_MODE_ENUM_END:
-            break;
     }
     return "Unknown";
 }
@@ -301,8 +293,6 @@ QString tracker_mode_from_enum(TRACKER_MODE mode) {
             return "Auto";
        case TRACKER_MODE_INITIALIZING:
             return "Initializing";
-       case TRACKER_MODE_ENUM_END:
-            break;
     }
     return "Unknown";
 }
@@ -392,6 +382,91 @@ QString ltm_mode_from_telem(int mode) {
             return "Cruise";
         default:
             return "Unknown";
+    }
+    return "Unknown";
+}
+
+QString px4_mode_from_custom_mode(int custom_mode) {
+    union px4_custom_mode px4_mode;
+    px4_mode.data = custom_mode;
+
+    auto main_mode = px4_mode.main_mode;
+
+    switch (main_mode) {
+        case PX4_CUSTOM_MAIN_MODE_MANUAL: {
+            return "Manual";
+        }
+        case PX4_CUSTOM_MAIN_MODE_ALTCTL: {
+            return "Altitude Control";
+        }
+        case PX4_CUSTOM_MAIN_MODE_POSCTL: {
+            switch (px4_mode.sub_mode) {
+                case PX4_CUSTOM_SUB_MODE_POSCTL_POSCTL: {
+                    return "Position Control";
+                }
+                case PX4_CUSTOM_SUB_MODE_POSCTL_ORBIT: {
+                    return "Position Control Orbit";
+                }
+                default: {
+                    break;
+                }
+            }
+
+            break;
+        }
+        case PX4_CUSTOM_MAIN_MODE_AUTO: {
+            switch (px4_mode.sub_mode) {
+                case PX4_CUSTOM_SUB_MODE_AUTO_READY: {
+                    return "Auto Ready";
+                }
+                case PX4_CUSTOM_SUB_MODE_AUTO_TAKEOFF: {
+                    return "Takeoff";
+                }
+                case PX4_CUSTOM_SUB_MODE_AUTO_LOITER: {
+                    return "Auto Loiter";
+                }
+                case PX4_CUSTOM_SUB_MODE_AUTO_MISSION: {
+                    return "Auto Mission";
+                }
+                case PX4_CUSTOM_SUB_MODE_AUTO_RTL: {
+                    return "Auto RTL";
+                }
+                case PX4_CUSTOM_SUB_MODE_AUTO_LAND: {
+                    return "Auto Land";
+                }
+                case PX4_CUSTOM_SUB_MODE_AUTO_RESERVED_DO_NOT_USE: {
+                    break;
+                }
+                case PX4_CUSTOM_SUB_MODE_AUTO_FOLLOW_TARGET: {
+                    return "Auto Follow Tgt";
+                }
+                case PX4_CUSTOM_SUB_MODE_AUTO_PRECLAND: {
+                    return "Auto Precision Land";
+                }
+                default: {
+                    break;
+                }
+            }
+            break;
+        }
+        case PX4_CUSTOM_MAIN_MODE_ACRO: {
+            return "Acro";
+        }
+        case PX4_CUSTOM_MAIN_MODE_OFFBOARD: {
+            return "Offboard";
+        }
+        case PX4_CUSTOM_MAIN_MODE_STABILIZED: {
+            return "Stabilized";
+        }
+        case PX4_CUSTOM_MAIN_MODE_RATTITUDE: {
+            return "Rattitude";
+        }
+        case PX4_CUSTOM_MAIN_MODE_SIMPLE: {
+            return "Simple";
+        }
+        default: {
+            break;
+        }
     }
     return "Unknown";
 }

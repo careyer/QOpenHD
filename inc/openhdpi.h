@@ -24,20 +24,18 @@ public:
 
     Q_INVOKABLE void activate_console();
     Q_INVOKABLE void stop_app();
-    Q_INVOKABLE void set_mount_rw();
-    Q_INVOKABLE void set_mount_ro();
+    Q_INVOKABLE void set_boot_mount_rw();
+    Q_INVOKABLE void set_boot_mount_ro();
 
     Q_INVOKABLE void update_ground();
 
-    int ground_load;
-    int ground_temp;
+    int ground_load = 0;
+    int ground_temp = 0;
 
 private:
-#if defined(__rasp_pi__)
     QProcess *mountProcess = nullptr;
-#endif
 
-    bool m_undervolt;
+    bool m_undervolt = false;
     long double a[4], b[4];
 
 signals:

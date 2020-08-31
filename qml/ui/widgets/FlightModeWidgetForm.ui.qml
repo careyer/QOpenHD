@@ -26,7 +26,7 @@ BaseWidget {
             height: 32
             Text {
                 id: opacityTitle
-                text: "Opacity"
+                text: qsTr("Transparency")
                 color: "white"
                 height: parent.height
                 font.bold: true
@@ -51,12 +51,42 @@ BaseWidget {
                 }
             }
         }
+        Item {
+            width: parent.width
+            height: 32
+            Text {
+                text: qsTr("Size")
+                color: "white"
+                height: parent.height
+                font.bold: true
+                font.pixelSize: detailPanelFontPixels
+                anchors.left: parent.left
+                verticalAlignment: Text.AlignVCenter
+            }
+            Slider {
+                id: flight_mode_size_Slider
+                orientation: Qt.Horizontal
+                from: .5
+                value: settings.flight_mode_size
+                to: 3
+                stepSize: .1
+                height: parent.height
+                anchors.rightMargin: 0
+                anchors.right: parent.right
+                width: parent.width - 96
+
+                onValueChanged: {
+                    settings.flight_mode_size = flight_mode_size_Slider.value
+                }
+            }
+        }
     }
 
     Item {
         id: widgetInner
 
         anchors.fill: parent
+        scale: settings.flight_mode_size
 
         Text {
             id: flight_mode_icon
@@ -72,11 +102,12 @@ BaseWidget {
             horizontalAlignment: Text.AlignRight
             verticalAlignment: Text.AlignVCenter
             font.pixelSize: 20
+            style: Text.Outline
+            styleColor: settings.color_glow
         }
 
         Text {
             id: flight_mode_text
-
             height: 48
             color: settings.color_text
             opacity: settings.flight_mode_opacity
@@ -85,7 +116,10 @@ BaseWidget {
             anchors.horizontalCenter: parent.horizontalCenter
             verticalAlignment: Text.AlignVCenter
             font.pixelSize: 24
+            font.family: settings.font_text
             elide: Text.ElideRight
+            style: Text.Outline
+            styleColor: settings.color_glow
         }
     }
 }

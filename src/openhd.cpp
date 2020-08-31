@@ -4,6 +4,10 @@
 #include "openhdtelemetry.h"
 #include "localmessage.h"
 
+#include "opensky.h"
+#include "markermodel.h"
+#include "blackboxmodel.h"
+
 #include <GeographicLib/Geodesic.hpp>
 
 
@@ -30,15 +34,52 @@ OpenHD::OpenHD(QObject *parent): QObject(parent) {
     set_ground_gpio({0, 0, 0, 0, 0, 0, 0, 0});
     set_air_gpio({0, 0, 0, 0, 0, 0, 0, 0});
 
+    #if defined(ENABLE_BLACKBOX)
+    auto blackBoxModel = BlackBoxModel::instance();
+    connect(this, &OpenHD::addBlackBoxObject, blackBoxModel, &BlackBoxModel::addBlackBoxObject);
+    connect(this, &OpenHD::playBlackBoxObject, blackBoxModel, &BlackBoxModel::playBlackBoxObject);
+    #endif
+
     timer = new QTimer(this);
     QObject::connect(timer, &QTimer::timeout, this, &OpenHD::updateFlightTimer);
+    #if defined(ENABLE_BLACKBOX)
+    QObject::connect(timer, &QTimer::timeout, this, &OpenHD::updateBlackBoxModel);
+    #endif
     timer->start(1000);
 
     auto mavlink = MavlinkTelemetry::instance();
     connect(mavlink, &MavlinkTelemetry::last_heartbeat_changed, this, &OpenHD::set_last_telemetry_heartbeat);
+    connect(mavlink, &MavlinkTelemetry::last_attitude_changed, this, &OpenHD::set_last_telemetry_attitude);
+    connect(mavlink, &MavlinkTelemetry::last_battery_changed, this, &OpenHD::set_last_telemetry_battery);
+    connect(mavlink, &MavlinkTelemetry::last_gps_changed, this, &OpenHD::set_last_telemetry_gps);
+    connect(mavlink, &MavlinkTelemetry::last_vfr_changed, this, &OpenHD::set_last_telemetry_vfr);
+
+    connect(this, &OpenHD::pauseTelemetry, mavlink, &MavlinkTelemetry::pauseTelemetry);
 
     auto openhd = OpenHDTelemetry::instance();
     connect(openhd, &OpenHDTelemetry::last_heartbeat_changed, this, &OpenHD::set_last_openhd_heartbeat);
+}
+
+
+void OpenHD::switchToLanguage(const QString &language) {
+    QLocale::setDefault(language);
+
+    if (!m_translator.isEmpty()) {
+        QCoreApplication::removeTranslator(&m_translator);
+    }
+
+    bool success = m_translator.load(":/translations/QOpenHD.qm");
+    if (!success) {
+        qDebug() << "Translation load failed";
+        return;
+    }
+    QCoreApplication::installTranslator(&m_translator);
+    m_engine->retranslate();
+}
+
+
+void OpenHD::setEngine(QQmlApplicationEngine *engine) {
+    m_engine = engine;
 }
 
 
@@ -66,32 +107,34 @@ QString OpenHD::get_qt_version() {
     return qt_ver;
 }
 
-void OpenHD::setWifiAdapters(QList<QVariantMap> adapters) {
-    if (adapters.length() == 0) return;
 
-    m_wifi_adapter0 = adapters[0];
-    emit wifi_adapter0_changed(m_wifi_adapter0);
-    if (adapters.length() == 1) return;
+void OpenHD::setWifiAdapter0(uint32_t received_packet_cnt, int8_t current_signal_dbm, int8_t signal_good) {
+    emit wifiAdapter0Changed(received_packet_cnt, current_signal_dbm, signal_good);
+}
 
-    m_wifi_adapter1 = adapters[1];
-    emit wifi_adapter1_changed(m_wifi_adapter1);
-    if (adapters.length() == 2) return;
 
-    m_wifi_adapter2 = adapters[2];
-    emit wifi_adapter2_changed(m_wifi_adapter2);
-    if (adapters.length() == 3) return;
+void OpenHD::setWifiAdapter1(uint32_t received_packet_cnt, int8_t current_signal_dbm, int8_t signal_good) {
+    emit wifiAdapter1Changed(received_packet_cnt, current_signal_dbm, signal_good);
+}
 
-    m_wifi_adapter3 = adapters[3];
-    emit wifi_adapter3_changed(m_wifi_adapter3);
-    if (adapters.length() == 4) return;
 
-    m_wifi_adapter4 = adapters[4];
-    emit wifi_adapter4_changed(m_wifi_adapter4);
-    if (adapters.length() == 5) return;
+void OpenHD::setWifiAdapter2(uint32_t received_packet_cnt, int8_t current_signal_dbm, int8_t signal_good) {
+    emit wifiAdapter2Changed(received_packet_cnt, current_signal_dbm, signal_good);
+}
 
-    m_wifi_adapter5 = adapters[5];
-    emit wifi_adapter5_changed(m_wifi_adapter5);
-    if (adapters.length() == 6) return;
+
+void OpenHD::setWifiAdapter3(uint32_t received_packet_cnt, int8_t current_signal_dbm, int8_t signal_good) {
+    emit wifiAdapter3Changed(received_packet_cnt, current_signal_dbm, signal_good);
+}
+
+
+void OpenHD::setWifiAdapter4(uint32_t received_packet_cnt, int8_t current_signal_dbm, int8_t signal_good) {
+    emit wifiAdapter4Changed(received_packet_cnt, current_signal_dbm, signal_good);
+}
+
+
+void OpenHD::setWifiAdapter5(uint32_t received_packet_cnt, int8_t current_signal_dbm, int8_t signal_good) {
+    emit wifiAdapter5Changed(received_packet_cnt, current_signal_dbm, signal_good);
 }
 
 void OpenHD::telemetryMessage(QString message, int level) {
@@ -106,7 +149,7 @@ void OpenHD::telemetryMessage(QString message, int level) {
 }
 
 void OpenHD::updateFlightTimer() {
-    if (m_armed) {
+    if (m_armed && m_pause_blackbox == false) {
         // check elapsed time since arming and update the UI-visible flight_time property
         int elapsed = flightTimeStart.elapsed() / 1000;
         auto hours = elapsed / 3600;
@@ -122,29 +165,76 @@ void OpenHD::updateFlightTimer() {
     }
 }
 
-void OpenHD::updateFlightDistance() {
-    auto elapsed = flightTimeStart.elapsed();
-    auto time = elapsed / 3600;
-    auto time_diff = time - flightDistanceLastTime;
-    flightDistanceLastTime = time;
-
-    auto added_distance =  m_speed * time_diff;
-    total_dist = total_dist + added_distance;
-
-    set_flight_distance( total_dist);
+void OpenHD::findGcsPosition() {
+    if (gcs_position_set==false){
+        //only attempt to set gcs home position if hdop<3m and unarmed
+        if (m_gps_hdop<3 && m_armed==false){
+            //get 20 good gps readings before setting
+            if (++gps_quality_count == 20) {
+                set_homelat(m_lat);
+                set_homelon(m_lon);
+                gcs_position_set=true;
+                LocalMessage::instance()->showMessage("Home Position set by OpenHD", 2);
+            }
+        }
+    }
 }
 
-void OpenHD::updateFlightMah() {
-    auto elapsed = flightTimeStart.elapsed();
+void OpenHD::updateFlightDistance() {
+    if (m_gps_hdop > 20 || m_lat == 0.0){
+        //do not pollute distance if we have bad data
+        return;
+    }
+    if (m_armed==true){
+        auto elapsed = flightTimeStart.elapsed();
+        auto time = elapsed / 3600;
+        auto time_diff = time - flightDistanceLastTime;
+        flightDistanceLastTime = time;
+
+        auto added_distance =  m_speed * time_diff;
+        //qDebug() << "added distance" << added_distance;
+        total_dist = total_dist + added_distance;
+
+        //qDebug() << "total distance" << total_dist;
+        set_flight_distance( total_dist);
+    }
+}
+
+void OpenHD::updateAppMah() {
+    if (!totalTime.isValid()){
+        totalTime.start();
+    }
+    auto elapsed = totalTime.elapsed();
     auto time = elapsed / 3600;
-    auto time_diff = time - flightMahLastTime;
-    flightMahLastTime = time;
+    auto time_diff = time - mahLastTime;
+    mahLastTime = time;
 
     //m_battery_current is 1 decimals to the right
     auto added_mah=(m_battery_current/100) * time_diff;
     total_mah = total_mah + added_mah;
 
-    set_flight_mah( total_mah );
+    set_app_mah( total_mah );
+}
+
+void OpenHD::pauseBlackBox(bool pause, int index){
+    //qDebug() << "OpenHD::pauseBlackBox";
+    m_pause_blackbox=pause;
+    emit pauseTelemetry(pause);
+    emit playBlackBoxObject(index);
+}
+
+void OpenHD::updateBlackBoxModel() {
+    //qDebug() << "updateBlackBoxModel() ";
+
+    if (m_pause_blackbox==false && m_armed == true){
+        emit addBlackBoxObject(BlackBox(m_flight_mode,m_flight_time,m_lat,m_lon,m_alt_msl,m_speed,
+                                        m_hdg,m_vsi,m_pitch,m_roll,m_throttle, m_control_pitch,m_control_roll,m_control_yaw,
+                                        m_control_throttle,m_current_signal_joystick_uplink,m_downlink_rssi,m_lost_packet_cnt_rc,
+                                        m_lost_packet_cnt_telemetry_up,m_skipped_packet_cnt,m_injection_fail_cnt,m_kbitrate,
+                                        m_kbitrate_measured,m_damaged_block_cnt,m_damaged_block_percent,m_lost_packet_cnt,
+                                        m_lost_packet_percent,m_cpuload_air,m_temp_air,m_battery_voltage,m_flight_mah,
+                                        m_home_distance,m_home_course,m_homelat,m_homelon,m_flight_time,m_flight_distance));
+    }
 }
 
 void OpenHD::set_boot_time(int boot_time) {
@@ -215,8 +305,8 @@ void OpenHD::set_armed(bool armed) {
          */
         flightTimeStart.start();
 
-        if(armed==true && m_homelat == 0.0 && m_homelon == 0.0){
-            LocalMessage::instance()->showMessage("No Home Position in OpenHD", 3);
+        if (m_homelat == 0.0 && m_homelon == 0.0) {
+            LocalMessage::instance()->showMessage("No Home Position in OpenHD", 4);
         }
     }
 
@@ -237,11 +327,13 @@ void OpenHD::set_flight_mode(QString flight_mode) {
 
 void OpenHD::set_homelat(double homelat) {
     m_homelat = homelat;
+    gcs_position_set = true;
     emit homelat_changed(m_homelat);
 }
 
 void OpenHD::set_homelon(double homelon) {
     m_homelon = homelon;
+    gcs_position_set = true;
     emit homelon_changed(m_homelon);
 }
 
@@ -286,17 +378,29 @@ void OpenHD::calculate_home_course () {
     a2 = atan2(a1, a2);
     if (a2 < 0.0) a2 += M_PI*2;
 
-    set_home_course(180.0f / M_PI*(a2));
+    int result= 180.0f / M_PI*(a2);
+
+    set_home_course(result);
+    set_home_heading(result);
 
 }
 
-void OpenHD::set_home_course(double home_course) {
+void OpenHD::set_home_course(int home_course) {    
     //so arrow points correct way it must be relative to heading
-    double rel_heading = home_course - m_hdg;
+    int rel_heading = home_course - m_hdg;
     if (rel_heading < 0) rel_heading += 360;
     if (rel_heading >= 360) rel_heading -=360;
     m_home_course = rel_heading;
     emit home_course_changed(home_course);
+}
+
+void OpenHD::set_home_heading(int home_heading) {
+    //backwards for some reason
+    home_heading=home_heading-180;
+    if (home_heading < 0) home_heading += 360;
+    if (home_heading >= 360) home_heading -=360;
+    m_home_heading = home_heading;
+    emit home_heading_changed(home_heading);
 }
 
 void OpenHD::set_lat(double lat) {
@@ -394,6 +498,11 @@ void OpenHD::set_vsi(float vsi) {
      emit vsi_changed(m_vsi);
 }
 
+void OpenHD::set_lateral_speed(double lateral_speed) {
+    m_lateral_speed= lateral_speed;
+     emit lateral_speed_changed(m_lateral_speed);
+}
+
 void OpenHD::set_wind_speed(double wind_speed) {
     m_wind_speed= wind_speed;
      emit wind_speed_changed(m_wind_speed);
@@ -432,6 +541,16 @@ void OpenHD::set_control_yaw(int control_yaw) {
 void OpenHD::set_control_throttle(int control_throttle) {
     m_control_throttle = control_throttle;
      emit control_throttle_changed(m_control_throttle);
+}
+
+void OpenHD::setRcRssi(int rcRssi) {
+    m_rcRssi = rcRssi;
+    emit rcRssiChanged(m_rcRssi);
+}
+
+void OpenHD::set_fc_temp(int fc_temp) {
+    m_fc_temp = fc_temp;
+    emit fc_temp_changed(m_fc_temp);
 }
 
 void OpenHD::set_downlink_rssi(int downlink_rssi) {
@@ -544,6 +663,11 @@ void OpenHD::set_flight_mah(double flight_mah) {
     emit flight_mah_changed(m_flight_mah);
 }
 
+void OpenHD::set_app_mah(double app_mah) {
+    m_app_mah = app_mah;
+    emit app_mah_changed(m_app_mah);
+}
+
 void OpenHD::set_last_openhd_heartbeat(qint64 last_openhd_heartbeat) {
     m_last_openhd_heartbeat = last_openhd_heartbeat;
     emit last_openhd_heartbeat_changed(m_last_openhd_heartbeat);
@@ -552,6 +676,26 @@ void OpenHD::set_last_openhd_heartbeat(qint64 last_openhd_heartbeat) {
 void OpenHD::set_last_telemetry_heartbeat(qint64 last_telemetry_heartbeat) {
     m_last_telemetry_heartbeat = last_telemetry_heartbeat;
     emit last_telemetry_heartbeat_changed(m_last_telemetry_heartbeat);
+}
+
+void OpenHD::set_last_telemetry_attitude(qint64 last_telemetry_attitude) {
+    m_last_telemetry_attitude = last_telemetry_attitude;
+    emit last_telemetry_attitude_changed(m_last_telemetry_attitude);
+}
+
+void OpenHD::set_last_telemetry_battery(qint64 last_telemetry_battery) {
+    m_last_telemetry_battery = last_telemetry_battery;
+    emit last_telemetry_battery_changed(m_last_telemetry_battery);
+}
+
+void OpenHD::set_last_telemetry_gps(qint64 last_telemetry_gps) {
+    m_last_telemetry_gps = last_telemetry_gps;
+    emit last_telemetry_gps_changed(m_last_telemetry_gps);
+}
+
+void OpenHD::set_last_telemetry_vfr(qint64 last_telemetry_vfr) {
+    m_last_telemetry_vfr = last_telemetry_vfr;
+    emit last_telemetry_vfr_changed(m_last_telemetry_vfr);
 }
 
 void OpenHD::set_main_video_running(bool main_video_running) {
@@ -609,7 +753,58 @@ void OpenHD::set_ground_iout(double ground_iout) {
     emit ground_iout_changed(m_ground_iout);
 }
 
-void OpenHD::updateWind() {
+void OpenHD::set_air_vout(double air_vout) {
+    m_air_vout = air_vout;
+    emit air_vout_changed(m_air_vout);
+}
+
+void OpenHD::set_air_iout(double air_iout) {
+    m_air_iout = air_iout;
+    emit air_iout_changed(m_air_iout);
+}
+
+void OpenHD::updateLateralSpeed(){
+
+    auto resultant_magnitude = sqrt(m_vx * m_vx + m_vy * m_vy);
+
+    //direction of motion vector in radians then converted to degree
+    auto resultant_angle = atan2(m_vy , m_vx)*(180/M_PI);
+
+    //converted from degrees to a compass heading
+    if (resultant_angle < 0.0){
+        resultant_angle += 360;
+    }
+
+    //Compare the motion heading to the vehicle heading
+    auto left = m_hdg - resultant_angle;
+    auto right = resultant_angle - m_hdg;
+    if (left < 0) left += 360;
+    if (right < 0) right += 360;
+    auto heading_diff = left < right ? -left : right;
+
+    double vehicle_vx=0.0;
+
+
+    if (heading_diff > 0 && heading_diff <= 90){
+        //console.log("we are moving forward and or right");
+        vehicle_vx=(heading_diff/90)*resultant_magnitude;
+    }
+    else if (heading_diff > 90 && heading_diff <= 180){
+        //console.log("we are moving backwards and or right");
+        vehicle_vx=((heading_diff*-1)+180)/90*resultant_magnitude;
+    }
+    else if (heading_diff > -180 && heading_diff <= -90){
+        //console.log("we are moving backwards and or left");
+        vehicle_vx=((heading_diff+180)/90)*-1*resultant_magnitude;
+    }
+    else{
+        //console.log("we are moving forward and or left");
+        vehicle_vx=(heading_diff/90)*resultant_magnitude;
+    }
+    set_lateral_speed(vehicle_vx);
+}
+
+void OpenHD::updateWind(){
 
     if (m_vsi < 1 && m_vsi > -1){
         // we are level, so a 2d vector is possible
@@ -777,5 +972,46 @@ void OpenHD::updateWind() {
 
         }
     }
+}
+
+
+void OpenHD::setRCChannel1(int rcChannel1) {
+    mRCChannel1 = rcChannel1;
+    emit rcChannel1Changed(mRCChannel1);
+}
+
+void OpenHD::setRCChannel2(int rcChannel2) {
+    mRCChannel2 = rcChannel2;
+    emit rcChannel2Changed(mRCChannel2);
+}
+
+void OpenHD::setRCChannel3(int rcChannel3) {
+    mRCChannel3 = rcChannel3;
+    emit rcChannel3Changed(mRCChannel3);
+}
+
+void OpenHD::setRCChannel4(int rcChannel4) {
+    mRCChannel4 = rcChannel4;
+    emit rcChannel4Changed(mRCChannel4);
+}
+
+void OpenHD::setRCChannel5(int rcChannel5) {
+    mRCChannel5 = rcChannel5;
+    emit rcChannel5Changed(mRCChannel5);
+}
+
+void OpenHD::setRCChannel6(int rcChannel6) {
+    mRCChannel6 = rcChannel6;
+    emit rcChannel6Changed(mRCChannel6);
+}
+
+void OpenHD::setRCChannel7(int rcChannel7) {
+    mRCChannel7 = rcChannel7;
+    emit rcChannel7Changed(mRCChannel7);
+}
+
+void OpenHD::setRCChannel8(int rcChannel8) {
+    mRCChannel8 = rcChannel8;
+    emit rcChannel8Changed(mRCChannel8);
 }
 

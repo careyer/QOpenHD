@@ -31,7 +31,7 @@ BaseWidget {
             width: parent.width
             height: 32
             Text {
-                text: "Opacity"
+                text: qsTr("Transparency")
                 color: "white"
                 height: parent.height
                 font.bold: true
@@ -56,12 +56,40 @@ BaseWidget {
                 }
             }
         }
-
         Item {
             width: parent.width
             height: 32
             Text {
-                text: "Max/Min"
+                text: qsTr("Size")
+                color: "white"
+                height: parent.height
+                font.bold: true
+                font.pixelSize: detailPanelFontPixels
+                anchors.left: parent.left
+                verticalAlignment: Text.AlignVCenter
+            }
+            Slider {
+                id: vsi_size_Slider
+                orientation: Qt.Horizontal
+                from: .5
+                value: settings.vsi_size
+                to: 3
+                stepSize: .1
+                height: parent.height
+                anchors.rightMargin: 0
+                anchors.right: parent.right
+                width: parent.width - 96
+
+                onValueChanged: {
+                    settings.vsi_size = vsi_size_Slider.value
+                }
+            }
+        }
+        Item {
+            width: parent.width
+            height: 32
+            Text {
+                text: qsTr("Range")
                 color: "white"
                 height: parent.height
                 font.bold: true
@@ -88,85 +116,111 @@ BaseWidget {
         }
     }
 
-    Glow {
-        anchors.fill: widgetInner
-        radius: 3
-        samples: 17
-        color: settings.color_glow
-        opacity: settings.vsi_opacity
-        source: widgetInner
-    }
-
     Item {
         id: widgetInner
         anchors.fill: parent
         opacity: settings.vsi_opacity
 
-
-        CircularGauge {
-            id: gauge
+        Item {
             anchors.fill: parent
-            antialiasing: true
+            anchors.centerIn: parent
+            transform: Scale { origin.x: 25; origin.y: 25; xScale: settings.vsi_size ; yScale: settings.vsi_size}
 
-            rotation: 270
+            Shape {
+                anchors.fill: parent
+                id: gaugeArcGlow
 
-            minimumValue: settings.vsi_max*-1
-            maximumValue: settings.vsi_max
+                ShapePath {
+                    fillColor: "transparent"
+                    strokeColor: settings.color_glow
+                    strokeWidth: 3
+                    capStyle: ShapePath.RoundCap
 
-            value: OpenHD.vsi
-
-            style: CircularGaugeStyle {
-                labelInset: outerRadius * -.3
-                minorTickmarkCount : 0
-                // @disable-check M223
-                labelStepSize : {settings.vsi_max/5}
-                maximumValueAngle : 135
-                minimumValueAngle : -135
-
-                tickmark: Rectangle {
-                    visible: styleData.value
-                    implicitWidth: outerRadius * 0.05
-                    antialiasing: true
-                    implicitHeight: outerRadius * 0.09
-                    color: settings.color_shape
-                }
-
-                tickmarkLabel:  Text {
-                    rotation: 90
-                    //font.pixelSize: Math.max(6, outerRadius * 0.1)
-                    font.pixelSize: 9
-                    text: styleData.value
-                    color: settings.color_text
-                    antialiasing: true
-                }
-
-                needle: Rectangle {
-                    y: outerRadius * -.01 //this is the needle base closest to axis
-                    implicitWidth: outerRadius * 0.05
-                    implicitHeight: outerRadius
-                    antialiasing: true
-                    color: settings.color_text
-                }
-
-                function degreesToRadians(degrees) {
-                    return degrees * (Math.PI / 180);
-                }
-
-                background: Canvas {
-                    // @disable-check M223
-                    onPaint: {
-                    var ctx = getContext("2d");
-                    ctx.reset();
-
-                    ctx.beginPath();
-                    ctx.strokeStyle = settings.color_shape
-                    ctx.lineWidth = outerRadius * 0.02;
-
-                    ctx.arc(outerRadius, outerRadius, outerRadius - ctx.lineWidth / 2,
-                        degreesToRadians(valueToAngle(settings.vsi_max*-1) - 90),
-                        degreesToRadians(valueToAngle(settings.vsi_max) - 90));
-                    ctx.stroke();
+                    PathAngleArc {
+                        centerX: 25
+                        centerY: 25
+                        radiusX: 25
+                        radiusY: 25
+                        startAngle: 45
+                        sweepAngle: 270
                     }
+                }
+            }
+            Shape {
+                anchors.fill: parent
+                id: gaugeArc
+
+                ShapePath {
+                    fillColor: "transparent"
+                    strokeColor: settings.color_shape
+                    strokeWidth: 1
+                    capStyle: ShapePath.RoundCap
+
+                    PathAngleArc {
+                        centerX: 25
+                        centerY: 25
+                        radiusX: 25
+                        radiusY: 25
+                        startAngle: 45
+                        sweepAngle: 270
+                    }
+                }
+            }
+
+            CircularGauge {
+                id: gauge
+                anchors.fill: parent
+                antialiasing: true
+
+                rotation: 270
+
+                minimumValue: settings.vsi_max*-1
+                maximumValue: settings.vsi_max
+
+                value: OpenHD.vsi
+
+                style: CircularGaugeStyle {
+                    labelInset: outerRadius * -.3
+                    minorTickmarkCount : 0
+                    tickmarkStepSize : {settings.vsi_max/5}
+                    // @disable-check M223
+                    labelStepSize : {settings.vsi_max/5}
+                    maximumValueAngle : 135
+                    minimumValueAngle : -135
+
+                    tickmark: Rectangle {
+                        visible: styleData.value
+                        implicitWidth: outerRadius * 0.05
+                        antialiasing: true
+                        implicitHeight: outerRadius * 0.2
+                        color: settings.color_shape
+                        border.color: settings.color_glow
+                        border.width: 1
+                        width: 3
+                    }
+
+                    tickmarkLabel:  Text {
+                        rotation: 90
+                        //font.pixelSize: Math.max(6, outerRadius * 0.1)
+                        font.pixelSize: 9
+                        font.family: settings.font_text
+                        text: styleData.value
+                        color: settings.color_text
+                        antialiasing: true
+                        style: Text.Outline
+                        styleColor: settings.color_glow
+                    }
+
+                    needle: Rectangle {
+                        y: outerRadius * -.01 //this is the needle base closest to axis
+                        implicitWidth: outerRadius * 0.05
+                        implicitHeight: outerRadius
+                        antialiasing: true
+                        color: settings.color_text
+                        border.color: settings.color_glow
+                        border.width: 1
+                        width: 3
+                    }         
                 }
             }
         }

@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QtQuick>
 
+#include "blackboxmodel.h"
 
 #if defined(ENABLE_SPEECH)
 #include <QtTextToSpeech/QTextToSpeech>
@@ -21,7 +22,19 @@ public:
     void calculate_home_distance();
     void calculate_home_course();
 
-    void setWifiAdapters(QList<QVariantMap> adapters);
+    Q_INVOKABLE void pauseBlackBox(bool pause, int index);
+    void updateBlackBoxModel();
+
+    void setWifiAdapter0(uint32_t received_packet_cnt, int8_t current_signal_dbm, int8_t signal_good);
+    void setWifiAdapter1(uint32_t received_packet_cnt, int8_t current_signal_dbm, int8_t signal_good);
+    void setWifiAdapter2(uint32_t received_packet_cnt, int8_t current_signal_dbm, int8_t signal_good);
+    void setWifiAdapter3(uint32_t received_packet_cnt, int8_t current_signal_dbm, int8_t signal_good);
+    void setWifiAdapter4(uint32_t received_packet_cnt, int8_t current_signal_dbm, int8_t signal_good);
+    void setWifiAdapter5(uint32_t received_packet_cnt, int8_t current_signal_dbm, int8_t signal_good);
+
+    void setEngine(QQmlApplicationEngine *engine);
+
+    Q_INVOKABLE void switchToLanguage(const QString &language);
 
     Q_INVOKABLE void setGroundGPIO(int pin, bool state) {
         m_ground_gpio[pin] = state ? 1 : 0;
@@ -37,8 +50,10 @@ public:
        the way QTimer and QML singletons/context properties work */
     void updateFlightTimer();
 
+    void findGcsPosition();
     void updateFlightDistance();
-    void updateFlightMah();
+    void updateAppMah();
+    void updateLateralSpeed();
     void updateWind();
 
     Q_PROPERTY(QString gstreamer_version READ get_gstreamer_version NOTIFY gstreamer_version_changed)
@@ -51,8 +66,11 @@ public:
     Q_PROPERTY(double home_distance MEMBER m_home_distance WRITE set_home_distance NOTIFY home_distance_changed)
     void set_home_distance(double home_distance);
 
-    Q_PROPERTY(double home_course MEMBER m_home_course WRITE set_home_course NOTIFY home_course_changed)
-    void set_home_course(double home_course);
+    Q_PROPERTY(int home_course MEMBER m_home_course WRITE set_home_course NOTIFY home_course_changed)
+    void set_home_course(int home_course);
+
+    Q_PROPERTY(int home_heading MEMBER m_home_heading WRITE set_home_heading NOTIFY home_heading_changed)
+    void set_home_heading(int home_heading);
 
     Q_PROPERTY(int boot_time MEMBER m_boot_time WRITE set_boot_time NOTIFY boot_time_changed)
     void set_boot_time(int boot_time);
@@ -98,6 +116,22 @@ public:
 
     Q_PROPERTY(double lon MEMBER m_lon WRITE set_lon NOTIFY lon_changed)
     void set_lon(double lon);
+
+    double get_lat() {
+        return m_lat;
+    };
+    
+    double get_lon() { 
+        return m_lon;
+    };
+
+    double get_msl_alt() {
+        return m_alt_msl;
+    }
+
+    double get_hdg() {
+        return m_hdg;
+    }
 
     Q_PROPERTY(int satellites_visible MEMBER m_satellites_visible WRITE set_satellites_visible NOTIFY satellites_visible_changed)
     void set_satellites_visible(int satellites_visible);
@@ -162,6 +196,9 @@ public:
     Q_PROPERTY(float vsi MEMBER m_vsi WRITE set_vsi NOTIFY vsi_changed)
     void set_vsi(float vsi);
 
+    Q_PROPERTY(double lateral_speed MEMBER m_lateral_speed WRITE set_lateral_speed NOTIFY lateral_speed_changed)
+    void set_lateral_speed(double lateral_speed);
+
     Q_PROPERTY(double wind_speed MEMBER m_wind_speed WRITE set_wind_speed NOTIFY wind_speed_changed)
     void set_wind_speed(double wind_speed);
 
@@ -173,6 +210,12 @@ public:
 
     Q_PROPERTY(float mav_wind_speed MEMBER m_mav_wind_speed WRITE set_mav_wind_speed NOTIFY mav_wind_speed_changed)
     void set_mav_wind_speed(float mav_wind_speed);
+
+    Q_PROPERTY(int rcRssi MEMBER m_rcRssi WRITE setRcRssi NOTIFY rcRssiChanged)
+    void setRcRssi(int rcRssi);
+
+    Q_PROPERTY(int fc_temp MEMBER m_fc_temp WRITE set_fc_temp NOTIFY fc_temp_changed)
+    void set_fc_temp(int fc_temp);
 
 
     // openhd
@@ -249,11 +292,26 @@ public:
     Q_PROPERTY(double flight_mah MEMBER m_flight_mah WRITE set_flight_mah NOTIFY flight_mah_changed)
     void set_flight_mah(double flight_mah);
 
+    Q_PROPERTY(double app_mah MEMBER m_app_mah WRITE set_app_mah NOTIFY app_mah_changed)
+    void set_app_mah(double app_mah);
+
     Q_PROPERTY(qint64 last_openhd_heartbeat MEMBER m_last_openhd_heartbeat WRITE set_last_openhd_heartbeat NOTIFY last_openhd_heartbeat_changed)
     void set_last_openhd_heartbeat(qint64 last_openhd_heartbeat);
 
     Q_PROPERTY(qint64 last_telemetry_heartbeat MEMBER m_last_telemetry_heartbeat WRITE set_last_telemetry_heartbeat NOTIFY last_telemetry_heartbeat_changed)
     void set_last_telemetry_heartbeat(qint64 last_telemetry_heartbeat);
+
+    Q_PROPERTY(qint64 last_telemetry_attitude MEMBER m_last_telemetry_attitude WRITE set_last_telemetry_attitude NOTIFY last_telemetry_attitude_changed)
+    void set_last_telemetry_attitude(qint64 last_telemetry_attitude);
+
+    Q_PROPERTY(qint64 last_telemetry_battery MEMBER m_last_telemetry_battery WRITE set_last_telemetry_battery NOTIFY last_telemetry_battery_changed)
+    void set_last_telemetry_battery(qint64 last_telemetry_battery);
+
+    Q_PROPERTY(qint64 last_telemetry_gps MEMBER m_last_telemetry_gps WRITE set_last_telemetry_gps NOTIFY last_telemetry_gps_changed)
+    void set_last_telemetry_gps(qint64 last_telemetry_gps);
+
+    Q_PROPERTY(qint64 last_telemetry_vfr MEMBER m_last_telemetry_vfr WRITE set_last_telemetry_vfr NOTIFY last_telemetry_vfr_changed)
+    void set_last_telemetry_vfr(qint64 last_telemetry_vfr);
 
 
     Q_PROPERTY(bool main_video_running MEMBER m_main_video_running WRITE set_main_video_running NOTIFY main_video_running_changed)
@@ -279,13 +337,6 @@ public:
     Q_PROPERTY(bool air_gpio_busy MEMBER m_air_gpio_busy WRITE set_air_gpio_busy NOTIFY air_gpio_busy_changed)
     void set_air_gpio_busy(bool air_gpio_busy);
 
-    Q_PROPERTY(QVariantMap wifi_adapter0 MEMBER m_wifi_adapter0 NOTIFY wifi_adapter0_changed)
-    Q_PROPERTY(QVariantMap wifi_adapter1 MEMBER m_wifi_adapter1 NOTIFY wifi_adapter1_changed)
-    Q_PROPERTY(QVariantMap wifi_adapter2 MEMBER m_wifi_adapter2 NOTIFY wifi_adapter2_changed)
-    Q_PROPERTY(QVariantMap wifi_adapter3 MEMBER m_wifi_adapter3 NOTIFY wifi_adapter3_changed)
-    Q_PROPERTY(QVariantMap wifi_adapter4 MEMBER m_wifi_adapter4 NOTIFY wifi_adapter4_changed)
-    Q_PROPERTY(QVariantMap wifi_adapter5 MEMBER m_wifi_adapter5 NOTIFY wifi_adapter5_changed)
-
     Q_PROPERTY(double ground_vin MEMBER m_ground_vin WRITE set_ground_vin NOTIFY ground_vin_changed)
     void set_ground_vin(double ground_vin);
 
@@ -298,6 +349,39 @@ public:
     Q_PROPERTY(double ground_iout MEMBER m_ground_iout WRITE set_ground_iout NOTIFY ground_iout_changed)
     void set_ground_iout(double ground_iout);
 
+
+
+    Q_PROPERTY(double air_vout MEMBER m_air_vout WRITE set_air_vout NOTIFY air_vout_changed)
+    void set_air_vout(double air_vout);
+
+    Q_PROPERTY(double air_iout MEMBER m_air_iout WRITE set_air_iout NOTIFY air_iout_changed)
+    void set_air_iout(double air_iout);
+
+
+    Q_PROPERTY(int rcChannel1 MEMBER mRCChannel1 WRITE setRCChannel1 NOTIFY rcChannel1Changed)
+    void setRCChannel1(int rcChannel1);
+
+    Q_PROPERTY(int rcChannel2 MEMBER mRCChannel2 WRITE setRCChannel2 NOTIFY rcChannel2Changed)
+    void setRCChannel2(int rcChannel2);
+
+    Q_PROPERTY(int rcChannel3 MEMBER mRCChannel3 WRITE setRCChannel3 NOTIFY rcChannel3Changed)
+    void setRCChannel3(int rcChannel3);
+
+    Q_PROPERTY(int rcChannel4 MEMBER mRCChannel4 WRITE setRCChannel4 NOTIFY rcChannel4Changed)
+    void setRCChannel4(int rcChannel4);
+
+    Q_PROPERTY(int rcChannel5 MEMBER mRCChannel5 WRITE setRCChannel5 NOTIFY rcChannel5Changed)
+    void setRCChannel5(int rcChannel5);
+
+    Q_PROPERTY(int rcChannel6 MEMBER mRCChannel6 WRITE setRCChannel6 NOTIFY rcChannel6Changed)
+    void setRCChannel6(int rcChannel6);
+
+    Q_PROPERTY(int rcChannel7 MEMBER mRCChannel7 WRITE setRCChannel7 NOTIFY rcChannel7Changed)
+    void setRCChannel7(int rcChannel7);
+
+    Q_PROPERTY(int rcChannel8 MEMBER mRCChannel8 WRITE setRCChannel8 NOTIFY rcChannel8Changed)
+    void setRCChannel8(int rcChannel8);
+
 signals:
     // system
     void gstreamer_version_changed();
@@ -309,12 +393,13 @@ signals:
     void ground_gpio_busy_changed(bool ground_gpio_busy);
     void air_gpio_busy_changed(bool air_gpio_busy);
 
-    void wifi_adapter0_changed(QVariantMap wifi_adapter);
-    void wifi_adapter1_changed(QVariantMap wifi_adapter);
-    void wifi_adapter2_changed(QVariantMap wifi_adapter);
-    void wifi_adapter3_changed(QVariantMap wifi_adapter);
-    void wifi_adapter4_changed(QVariantMap wifi_adapter);
-    void wifi_adapter5_changed(QVariantMap wifi_adapter);
+    void wifiAdapter0Changed(unsigned int received_packet_cnt, int current_signal_dbm, int signal_good);
+    void wifiAdapter1Changed(unsigned int received_packet_cnt, int current_signal_dbm, int signal_good);
+    void wifiAdapter2Changed(unsigned int received_packet_cnt, int current_signal_dbm, int signal_good);
+    void wifiAdapter3Changed(unsigned int received_packet_cnt, int current_signal_dbm, int signal_good);
+    void wifiAdapter4Changed(unsigned int received_packet_cnt, int current_signal_dbm, int signal_good);
+    void wifiAdapter5Changed(unsigned int received_packet_cnt, int current_signal_dbm, int signal_good);
+
 
     // mavlink
     void boot_time_changed(int boot_time);
@@ -333,7 +418,8 @@ signals:
     void lat_changed(double lat);
     void lon_changed(double lon);
     void home_distance_changed(double home_distance);
-    void home_course_changed(double home_course);
+    void home_course_changed(int home_course);
+    void home_heading_changed(int home_heading);
     void battery_percent_changed(int battery_percent);
     void battery_voltage_changed(double battery_voltage);
     void battery_current_changed(double battery_current);
@@ -362,11 +448,17 @@ signals:
 
     void vsi_changed(float vsi);
 
+    void lateral_speed_changed(double lateral_speed);
+
     void wind_speed_changed(double wind_speed);
     void wind_direction_changed(double wind_direction);
 
     void mav_wind_direction_changed(float mav_wind_direction);
     void mav_wind_speed_changed(float mav_wind_speed);
+
+    void rcRssiChanged(int rcRssi);
+
+    void fc_temp_changed (int fc_temp);
 
     // openhd
     void downlink_rssi_changed(int downlink_rssi);
@@ -396,10 +488,15 @@ signals:
     void flight_distance_changed(double flight_distance);
 
     void flight_mah_changed(int flight_mah);
+    void app_mah_changed(int app_mah);
 
     void last_openhd_heartbeat_changed(qint64 last_openhd_heartbeat);
 
     void last_telemetry_heartbeat_changed(qint64 last_telemetry_heartbeat);
+    void last_telemetry_attitude_changed(qint64 last_telemetry_attitude);
+    void last_telemetry_battery_changed(qint64 last_telemetry_battery);
+    void last_telemetry_gps_changed(qint64 last_telemetry_gps);
+    void last_telemetry_vfr_changed(qint64 last_telemetry_vfr);
 
     void main_video_running_changed(bool main_video_running);
     void pip_video_running_changed(bool pip_video_running);
@@ -419,12 +516,29 @@ signals:
     void ground_vbat_changed(double ground_vbat);
     void ground_iout_changed(double ground_iout);
 
+    void air_vout_changed(double air_vout);
+    void air_iout_changed(double air_iout);
+
+    void rcChannel1Changed(int rcChanne1);
+    void rcChannel2Changed(int rcChanne2);
+    void rcChannel3Changed(int rcChanne3);
+    void rcChannel4Changed(int rcChanne4);
+    void rcChannel5Changed(int rcChanne5);
+    void rcChannel6Changed(int rcChanne6);
+    void rcChannel7Changed(int rcChanne7);
+    void rcChannel8Changed(int rcChanne8);
+
+    void addBlackBoxObject(const BlackBox &blackbox);
+    void pauseTelemetry(bool pause);
+    void playBlackBoxObject(int index);
+
 private:
 #if defined(ENABLE_SPEECH)
     QTextToSpeech *m_speech;
 #endif
 
 
+public:
     // mavlink
     int m_boot_time = 0;
 
@@ -441,17 +555,24 @@ private:
     double m_airspeed = 0;
 
     bool m_armed = false;
-    QString m_flight_mode = "Stabilize";
+    QString m_flight_mode = "------";
+
     double m_homelat = 0.0;
     double m_homelon = 0.0;
+    bool gcs_position_set = false;
+    int gps_quality_count = 0;
+
     double m_lat = 0.0;
     double m_lon = 0.0;
     double m_home_distance = 0.0;
-    double m_home_course = 0.0;
+    int m_home_heading = 0; //this is actual global heading
+    int m_home_course = 0; //this is the relative course from nose
+
     int m_battery_percent = 0;
     double m_battery_current = 0.0;
     double m_battery_voltage = 0.0;
     QString m_battery_gauge = "\uf091";
+
     int m_satellites_visible = 0;
     double m_gps_hdop = 99.00;
 
@@ -476,12 +597,16 @@ private:
 
     float m_vsi = 0.0;
 
+    double m_lateral_speed = 0.0;
+
     double m_wind_direction = 0.0;
     double m_wind_speed = 0.0;
     double speed_last_time = 0.0;
 
     float m_mav_wind_direction = 0.0;
     float m_mav_wind_speed = 0.0;
+
+    int m_rcRssi = 0;
 
     // openhd
 
@@ -496,6 +621,8 @@ private:
     double m_kbitrate = 0.0;
     double m_kbitrate_measured = 0.0;
     double m_kbitrate_set = 0.0;
+
+    int m_fc_temp = 0;
 
     int m_cpuload_gnd = 0;
 
@@ -523,24 +650,23 @@ private:
     long total_dist= 0;
 
     int m_flight_mah = 0;
-    qint64 flightMahLastTime= 0;
+    int m_app_mah = 0;
+    qint64 mahLastTime= 0;
     double total_mah= 0;
 
     qint64 m_last_openhd_heartbeat = -1;
     qint64 m_last_telemetry_heartbeat = -1;
+    qint64 m_last_telemetry_attitude = -1;
+    qint64 m_last_telemetry_battery = -1;
+    qint64 m_last_telemetry_gps = -1;
+    qint64 m_last_telemetry_vfr = -1;
 
     bool m_main_video_running = false;
     bool m_pip_video_running = false;
     bool m_lte_video_running = false;
 
-    QVariantMap m_wifi_adapter0;
-    QVariantMap m_wifi_adapter1;
-    QVariantMap m_wifi_adapter2;
-    QVariantMap m_wifi_adapter3;
-    QVariantMap m_wifi_adapter4;
-    QVariantMap m_wifi_adapter5;
-
-    QTime flightTimeStart;
+    QElapsedTimer totalTime;
+    QElapsedTimer flightTimeStart;
 
     QList<int> m_ground_gpio;
     QList<int> m_air_gpio;
@@ -550,10 +676,28 @@ private:
 
     QTimer* timer = nullptr;
 
-    double m_ground_vin = 0.0;
-    double m_ground_vout = 0.0;
-    double m_ground_vbat = 0.0;
-    double m_ground_iout = 0.0;
+    double m_ground_vin = -1;
+    double m_ground_vout = -1;
+    double m_ground_vbat = -1;
+    double m_ground_iout = -1;
+
+    double m_air_vout = -1;
+    double m_air_iout = -1;
+
+    int mRCChannel1 = 0;
+    int mRCChannel2 = 0;
+    int mRCChannel3 = 0;
+    int mRCChannel4 = 0;
+    int mRCChannel5 = 0;
+    int mRCChannel6 = 0;
+    int mRCChannel7 = 0;
+    int mRCChannel8 = 0;
+
+    bool m_pause_blackbox = false;
+
+    QTranslator m_translator;
+
+    QQmlApplicationEngine *m_engine = nullptr;
 };
 
 

@@ -15,7 +15,7 @@ const QVector<QString> permissions({"android.permission.INTERNET",
 
 #include "constants.h"
 
-
+#include "migration.hpp"
 #include "openhdtelemetry.h"
 #include "openhdrc.h"
 #include "openhdsettings.h"
@@ -39,8 +39,23 @@ const QVector<QString> permissions({"android.permission.INTERNET",
 
 #include "statuslogmodel.h"
 
+#if defined(ENABLE_ADSB)
 #include "opensky.h"
+#endif
 
+#include "markermodel.h"
+
+#include "blackboxmodel.h"
+
+#include "speedladder.h"
+#include "altitudeladder.h"
+#include "headingladder.h"
+
+#include "managesettings.h"
+
+#if defined(__ios__)
+#include "appleplatform.h"
+#endif
 
 #if defined(ENABLE_GSTREAMER)
 
@@ -50,6 +65,10 @@ const QVector<QString> permissions({"android.permission.INTERNET",
 
 #if defined(ENABLE_VIDEO_RENDER)
 #include "openhdvideo.h"
+#if defined(__android__)
+#include "openhdandroidvideo.h"
+#include "openhdrender.h"
+#endif
 #if defined(__rasp_pi__)
 #include "openhdmmalvideo.h"
 #include "openhdrender.h"
@@ -81,6 +100,11 @@ int main(int argc, char *argv[]) {
     QCoreApplication::setOrganizationDomain("open.hd");
     QCoreApplication::setApplicationName("Open.HD");
 
+    auto manageSettings = new ManageSettings();
+    #if defined(__rasp_pi__)
+    manageSettings->loadPiSettings();
+    #endif
+
     QSettings settings;
 
     double global_scale = settings.value("global_scale", 1.0).toDouble();
@@ -90,6 +114,15 @@ int main(int argc, char *argv[]) {
     qputenv("QT_SCALE_FACTOR", scaleAsQByteArray);
 
     QApplication app(argc, argv);
+
+    Migration::instance()->run();
+
+
+#if defined(__ios__)
+    auto applePlatform = ApplePlatform::instance();
+    applePlatform->disableScreenLock();
+    applePlatform->registerNotifications();
+#endif
 
 
 #if defined(__android__)
@@ -110,20 +143,6 @@ int main(int argc, char *argv[]) {
 #if defined(__rasp_pi__)
     qDebug() << "Initializing Pi";
     OpenHDPi pi;
-    if (pi.is_raspberry_pi()) {
-        /* no way around this for the moment due to the way Settings works, hopefully won't
-           be needed forever though */
-        pi.set_mount_rw();
-
-        // ensure the local message fifo exists before we continue
-        QString program("/usr/bin/mkfifo");
-        QStringList arguments;
-        arguments << MESSAGE_FIFO;
-        QProcess p;
-        p.start(program, arguments);
-        p.waitForFinished();
-    }
-
 
     // set persistent brightness level at startup
     if (pi.is_raspberry_pi()) {
@@ -134,12 +153,67 @@ int main(int argc, char *argv[]) {
 #endif
 
     QFontDatabase::addApplicationFont(":/Font Awesome 5 Free-Solid-900.otf");
-    /*QFontDatabase::addApplicationFont(":/Font Awesome 5 Free-Regular-400.otf");
-      QFontDatabase::addApplicationFont(":/Font Awesome 5 Brands-Regular-400.otf");*/
 
     QFontDatabase::addApplicationFont(":/osdicons.ttf");
 
     QFontDatabase::addApplicationFont(":/materialdesignicons-webfont.ttf");
+
+
+    QFontDatabase::addApplicationFont(":/osdfonts/Acme-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Aldrich-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/AnonymousPro-Bold.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/AnonymousPro-BoldItalic.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Archivo-Bold.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Archivo-Medium.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Archivo-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/ArchivoBlack-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Armata-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Bangers-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/BlackOpsOne-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Bungee-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Carbon-Bold.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Chicle-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Digital7SegmentDisplay.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/DigitalDotDisplay.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/DigitalSubwayTicker.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/ExpletusSans-Bold.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/FjallaOne-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/FredokaOne-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/GeostarFill-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Iceberg-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Iceland-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Jura-Bold.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/KeaniaOne-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Larabie.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/LuckiestGuy-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Merysha-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/NixieOne-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Orbitron-Bold.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Orbitron-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Oxygen-Bold.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Oxygen-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/PassionOne-Bold.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Quantico-Bold.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Quantico-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Quicksand-Bold.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Quicksand-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/RammettoOne-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Rationale-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Righteous-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/RobotoMono-Bold.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/RobotoMono-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/RussoOne-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/ShareTech-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/ShareTechMono-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/SigmarOne-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Slackey-Regular.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/UbuntuMono-Bold.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/UbuntuMono-BoldItalic.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/Visitor.ttf");
+    QFontDatabase::addApplicationFont(":/osdfonts/ZolanMonoOblique.ttf");
+
+
+
     qmlRegisterType<FrSkyTelemetry>("OpenHD", 1, 0, "FrSkyTelemetry");
     qmlRegisterType<MSPTelemetry>("OpenHD", 1, 0, "MSPTelemetry");
     qmlRegisterType<LTMTelemetry>("OpenHD", 1, 0, "LTMTelemetry");
@@ -155,7 +229,25 @@ int main(int argc, char *argv[]) {
 
     qmlRegisterType<QOpenHDLink>("OpenHD", 1,0, "QOpenHDLink");
 
+    #if defined(ENABLE_ADSB)
+    qmlRegisterType<OpenSky>("OpenHD", 1, 0, "OpenSky");
+    #endif
+
+    qmlRegisterType<MarkerModel>("OpenHD", 1, 0, "MarkerModel");
+
+    qmlRegisterType<BlackBoxModel>("OpenHD", 1, 0, "BlackBoxModel");
+
+    qmlRegisterType<SpeedLadder>("OpenHD", 1, 0, "SpeedLadder");
+
+    qmlRegisterType<AltitudeLadder>("OpenHD", 1, 0, "AltitudeLadder");
+
+    qmlRegisterType<HeadingLadder>("OpenHD", 1, 0, "HeadingLadder");
+
 #if defined(ENABLE_VIDEO_RENDER)
+#if defined(__android__)
+    qmlRegisterType<OpenHDAndroidVideo>("OpenHD", 1, 0, "OpenHDAndroidVideo");
+    qmlRegisterType<OpenHDRender>("OpenHD", 1, 0, "OpenHDRender");
+#endif
 #if defined(__rasp_pi__)
     qmlRegisterType<OpenHDMMALVideo>("OpenHD", 1, 0, "OpenHDMMALVideo");
     qmlRegisterType<OpenHDRender>("OpenHD", 1, 0, "OpenHDRender");
@@ -167,6 +259,8 @@ int main(int argc, char *argv[]) {
 #endif
 
     QQmlApplicationEngine engine;
+    auto openhd = OpenHD::instance();
+    openhd->setEngine(&engine);
 
 #if defined(__android__)
     engine.rootContext()->setContextProperty("IsAndroid", QVariant(true));
@@ -204,8 +298,6 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty("IsRaspPi", QVariant(false));
 #endif
 
-    auto openhd = OpenHD::instance();
-
 #if defined(ENABLE_GSTREAMER)
 engine.rootContext()->setContextProperty("EnableGStreamer", QVariant(true));
 engine.rootContext()->setContextProperty("EnableVideoRender", QVariant(false));
@@ -220,6 +312,15 @@ engine.rootContext()->setContextProperty("EnableVideoRender", QVariant(false));
 #if defined(ENABLE_VIDEO_RENDER)
 engine.rootContext()->setContextProperty("EnableGStreamer", QVariant(false));
 engine.rootContext()->setContextProperty("EnableVideoRender", QVariant(true));
+
+#if defined(__android__)
+#if defined(ENABLE_MAIN_VIDEO)
+OpenHDAndroidVideo *mainVideo = new OpenHDAndroidVideo(OpenHDStreamTypeMain);
+#endif
+#if defined(ENABLE_PIP)
+OpenHDAndroidVideo *pipVideo = new OpenHDAndroidVideo(OpenHDStreamTypePiP);
+#endif
+#endif
 
 #if defined(__rasp_pi__)
 #if defined(ENABLE_MAIN_VIDEO)
@@ -241,6 +342,9 @@ OpenHDAppleVideo *pipVideo = new OpenHDAppleVideo(OpenHDStreamTypePiP);
 
 
 #endif
+
+    engine.rootContext()->setContextProperty("ManageSettings", manageSettings);
+
 
     auto openHDSettings = new OpenHDSettings();
     engine.rootContext()->setContextProperty("openHDSettings", openHDSettings);
@@ -295,6 +399,17 @@ OpenHDAppleVideo *pipVideo = new OpenHDAppleVideo(OpenHDStreamTypePiP);
     //groundPowerThread->start();
     groundPowerMicroservice->onStarted();
 
+
+    auto airPowerMicroservice = new PowerMicroservice(nullptr, MicroserviceTargetAir, MavlinkTypeTCP);
+    engine.rootContext()->setContextProperty("AirPowerMicroservice", airPowerMicroservice);
+    //QThread *airPowerThread = new QThread();
+    //QObject::connect(airPowerThread, &QThread::started, airPowerMicroservice, &PowerMicroservice::onStarted);
+    //airPowerMicroservice->moveToThread(airPowerThread);
+    QObject::connect(openHDSettings, &OpenHDSettings::groundStationIPUpdated, airPowerMicroservice, &PowerMicroservice::setGroundIP, Qt::QueuedConnection);
+    //airPowerThread->start();
+    airPowerMicroservice->onStarted();
+
+
     auto groundStatusMicroservice = new StatusMicroservice(nullptr, MicroserviceTargetGround, MavlinkTypeTCP);
     engine.rootContext()->setContextProperty("GroundStatusMicroservice", groundStatusMicroservice);
     QObject::connect(openHDSettings, &OpenHDSettings::groundStationIPUpdated, groundStatusMicroservice, &StatusMicroservice::setGroundIP, Qt::QueuedConnection);
@@ -309,9 +424,34 @@ OpenHDAppleVideo *pipVideo = new OpenHDAppleVideo(OpenHDStreamTypePiP);
     auto statusLogModel = StatusLogModel::instance();
     engine.rootContext()->setContextProperty("StatusLogModel", statusLogModel);
 
-    auto opensky = new OpenSky();
-    engine.rootContext()->setContextProperty("OpenSky", opensky);
+    auto markerModel = MarkerModel::instance();
+    engine.rootContext()->setContextProperty("MarkerModel", markerModel);
+    markerModel->initMarkerModel();
 
+
+    #if defined(ENABLE_EXAMPLE_WIDGET)
+    engine.rootContext()->setContextProperty("EnableExampleWidget", QVariant(true));
+    #else
+    engine.rootContext()->setContextProperty("EnableExampleWidget", QVariant(false));
+    #endif
+
+
+    auto blackBoxModel = BlackBoxModel::instance();
+    engine.rootContext()->setContextProperty("BlackBoxModel", blackBoxModel);
+    blackBoxModel->initBlackBoxModel();
+
+    #if defined(ENABLE_BLACKBOX)
+    engine.rootContext()->setContextProperty("EnableBlackbox", QVariant(true));
+    #else
+    engine.rootContext()->setContextProperty("EnableBlackbox", QVariant(false));
+    #endif
+
+
+    #if defined(ENABLE_ADSB)
+    auto openSky = OpenSky::instance();
+    engine.rootContext()->setContextProperty("OpenSky", openSky);
+    openSky->onStarted();
+    #endif
 
     engine.rootContext()->setContextProperty("OpenHD", openhd);
 
@@ -328,6 +468,12 @@ OpenHDAppleVideo *pipVideo = new OpenHDAppleVideo(OpenHDStreamTypePiP);
     engine.rootContext()->setContextProperty("PiPStream", pipVideo);
 #else
     engine.rootContext()->setContextProperty("EnablePiP", QVariant(false));
+#endif
+
+#if defined(ENABLE_ADSB)
+    engine.rootContext()->setContextProperty("EnableADSB", QVariant(true));
+#else
+    engine.rootContext()->setContextProperty("EnableADSB", QVariant(false));
 #endif
 
 #if defined(ENABLE_CHARTS)
@@ -356,9 +502,6 @@ OpenHDAppleVideo *pipVideo = new OpenHDAppleVideo(OpenHDStreamTypePiP);
 
     engine.rootContext()->setContextProperty("QOPENHD_VERSION", QVariant(QOPENHD_VERSION));
 
-    engine.rootContext()->setContextProperty("OPENHD_VERSION", QVariant(OPENHD_VERSION));
-    engine.rootContext()->setContextProperty("BUILDER_VERSION", QVariant(BUILDER_VERSION));
-
     engine.load(QUrl(QLatin1String("qrc:/main.qml")));
 
 #if defined(__android__)
@@ -386,6 +529,20 @@ OpenHDAppleVideo *pipVideo = new OpenHDAppleVideo(OpenHDStreamTypePiP);
     QThread *pipVideoThread = new QThread();
     pipVideoThread->setObjectName("pipVideoThread");
 
+
+#if defined(__android__)
+#if defined(ENABLE_MAIN_VIDEO)
+    QQuickItem *mainRenderer = rootObject->findChild<QQuickItem *>("mainSurface");
+    mainVideo->setVideoOut((OpenHDRender*)mainRenderer);
+    QObject::connect(mainVideoThread, &QThread::started, mainVideo, &OpenHDAndroidVideo::onStarted);
+#endif
+
+#if defined(ENABLE_PIP)
+    QQuickItem *pipRenderer = rootObject->findChild<QQuickItem *>("pipSurface");
+    pipVideo->setVideoOut((OpenHDRender*)pipRenderer);
+    QObject::connect(pipVideoThread, &QThread::started, pipVideo, &OpenHDAndroidVideo::onStarted);
+#endif
+#endif
 
 #if defined(__rasp_pi__)
 #if defined(ENABLE_MAIN_VIDEO)

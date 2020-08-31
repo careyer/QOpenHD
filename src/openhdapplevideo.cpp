@@ -16,6 +16,11 @@
 
 #include <VideoToolbox/VideoToolbox.h>
 
+#include "h264_common.h"
+
+#include "appleplatform.h"
+
+
 using namespace std::chrono;
 
 
@@ -39,6 +44,19 @@ void decompressionOutputCallback(void *decompressionOutputRefCon,
 OpenHDAppleVideo::OpenHDAppleVideo(enum OpenHDStreamType stream_type): OpenHDVideo(stream_type) {
     qDebug() << "OpenHDAppleVideo::OpenHDAppleVideo()";
     connect(this, &OpenHDAppleVideo::configure, this, &OpenHDAppleVideo::vtdecConfigure, Qt::DirectConnection);
+
+    connect(this, &OpenHDAppleVideo::setup, this, &OpenHDAppleVideo::onSetup);
+
+}
+
+void OpenHDAppleVideo::onSetup() {
+    qDebug() << "OpenHDAppleVideo::onSetup()";
+
+    #if defined(__ios__)
+    auto applePlatform = ApplePlatform::instance();
+    connect(applePlatform, &ApplePlatform::willEnterForeground, this, &OpenHDAppleVideo::start, Qt::QueuedConnection);
+    connect(applePlatform, &ApplePlatform::didEnterBackground, this, &OpenHDAppleVideo::stop, Qt::QueuedConnection);
+    #endif
 }
 
 
@@ -48,11 +66,13 @@ OpenHDAppleVideo::~OpenHDAppleVideo() {
 
 
 void OpenHDAppleVideo::start() {
-    // nothing needed
+    m_background = false;
+    m_restart = true;
 }
 
 
 void OpenHDAppleVideo::stop() {
+    m_background = true;
     if (m_decompressionSession != nullptr) {
         VTDecompressionSessionInvalidate(m_decompressionSession);
         CFRelease(m_decompressionSession);
@@ -133,7 +153,8 @@ void OpenHDAppleVideo::vtdecConfigure() {
     callBackRecord.decompressionOutputCallback = decompressionOutputCallback;
     callBackRecord.decompressionOutputRefCon = static_cast<void*>(this);
 
-    /*int useGL = 1;
+    #if defined(__ios__)
+    int useGL = 1;
 
     const void *keys[] =   { kCVPixelBufferOpenGLESCompatibilityKey };
     const void *values[] = { CFNumberCreate(nullptr, kCFNumberIntType, &useGL) };
@@ -143,12 +164,15 @@ void OpenHDAppleVideo::vtdecConfigure() {
                                                                           values,
                                                                           1,
                                                                           nullptr,
-                                                                          nullptr);*/
+                                                                          nullptr);
+    #else
+    CFDictionaryRef destinationImageBufferAttributes = nullptr;
+    #endif
 
     status = VTDecompressionSessionCreate(nullptr,
                                           m_formatDesc,
                                           nullptr,
-                                          nullptr, //destinationImageBufferAttributes,
+                                          destinationImageBufferAttributes,
                                           &callBackRecord,
                                           &m_decompressionSession);
 
@@ -164,10 +188,7 @@ void OpenHDAppleVideo::vtdecConfigure() {
 
     QThread::msleep(100);
 
-
-
-    // the pi decoder hardware always gives us this format, so we hardcode it
-    m_videoOut->setFormat(width, height, QVideoFrame::PixelFormat::Format_YUV420P);
+    m_videoOut->setFormat(width, height, QVideoFrame::PixelFormat::Format_BGRA32);
 }
 
 
@@ -176,7 +197,11 @@ void OpenHDAppleVideo::inputLoop() {
 }
 
 
-void OpenHDAppleVideo::processFrame(QByteArray &nal) {
+void OpenHDAppleVideo::processFrame(QByteArray &nal, webrtc::H264::NaluType frameType) {
+
+    if (frameType == webrtc::H264::NaluType::kSps || frameType == webrtc::H264::NaluType::kPps || frameType == webrtc::H264::NaluType::kAud) {
+        return;
+    }
 
     CMSampleBufferRef sampleBuffer = nullptr;
     CMBlockBufferRef blockBuffer = nullptr;

@@ -17,6 +17,12 @@
 #include "util.h"
 #include "constants.h"
 
+/*
+ * Note: this class now has several crude hacks for handling the different sysid/compid combinations
+ * used by different flight controller firmware, this is the wrong way to do it but won't cause any
+ * problems yet.
+ *
+ */
 
 MavlinkBase::MavlinkBase(QObject *parent,  MavlinkType mavlink_type): QObject(parent), m_ground_available(false), m_mavlink_type(mavlink_type) {
     qDebug() << "MavlinkBase::MavlinkBase()";
@@ -29,7 +35,10 @@ void MavlinkBase::onStarted() {
     switch (m_mavlink_type) {
         case MavlinkTypeUDP: {
             mavlinkSocket = new QUdpSocket(this);
-            mavlinkSocket->bind(QHostAddress::Any, localPort);
+            auto bindStatus = mavlinkSocket->bind(QHostAddress::Any, localPort);
+            if (!bindStatus) {
+                emit bindError();
+            }
             connect(mavlinkSocket, &QUdpSocket::readyRead, this, &MavlinkBase::processMavlinkUDPDatagrams);
             break;
         }
@@ -77,6 +86,9 @@ void MavlinkBase::reconnectTCP() {
 }
 
 void MavlinkBase::setGroundIP(QString address) {
+    if (!mavlinkSocket) {
+        return;
+    }
     bool reconnect = false;
     if (groundAddress != address) {
         reconnect = true;
@@ -139,7 +151,7 @@ void MavlinkBase::fetchParameters() {
     int mavlink_sysid = settings.value("mavlink_sysid", default_mavlink_sysid()).toInt();
 
     mavlink_message_t msg;
-    mavlink_msg_param_request_list_pack(mavlink_sysid, MAV_COMP_ID_MISSIONPLANNER, &msg, targetSysID, targetCompID1);
+    mavlink_msg_param_request_list_pack(mavlink_sysid, MAV_COMP_ID_MISSIONPLANNER, &msg, targetSysID1, targetCompID1);
 
     uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
     int len = mavlink_msg_to_send_buffer(buffer, &msg);
@@ -186,6 +198,11 @@ void MavlinkBase::resetParamVars() {
 void MavlinkBase::stateLoop() {
     qint64 current_timestamp = QDateTime::currentMSecsSinceEpoch();
     set_last_heartbeat(current_timestamp - last_heartbeat_timestamp);
+
+    set_last_attitude(current_timestamp - last_attitude_timestamp);
+    set_last_battery(current_timestamp - last_battery_timestamp);
+    set_last_gps(current_timestamp - last_gps_timestamp);
+    set_last_vfr(current_timestamp - last_vfr_timestamp);
 
     return;
 
@@ -281,11 +298,11 @@ void MavlinkBase::processData(QByteArray data) {
             /*
              * Not the target we're talking to, so reject it
              */
-            if (msg.sysid != targetSysID) {
+            if (msg.sysid != targetSysID1 && msg.sysid != targetSysID2) {
                 return;
             }
 
-            if (msg.compid != targetCompID1 && msg.compid != targetCompID2) {
+            if (msg.compid != targetCompID1 && msg.compid != targetCompID2 && msg.compid != targetCompID3) {
                 return;
             }
             // process ack messages in the base class, subclasses will receive a signal
@@ -316,6 +333,52 @@ void MavlinkBase::set_last_heartbeat(qint64 last_heartbeat) {
     emit last_heartbeat_changed(m_last_heartbeat);
 }
 
+void MavlinkBase::set_last_attitude(qint64 last_attitude) {
+    m_last_attitude = last_attitude;
+    emit last_attitude_changed(m_last_attitude);
+}
+
+void MavlinkBase::set_last_battery(qint64 last_battery) {
+    m_last_battery = last_battery;
+    emit last_battery_changed(m_last_battery);
+}
+
+void MavlinkBase::set_last_gps(qint64 last_gps) {
+    m_last_gps = last_gps;
+    emit last_gps_changed(m_last_gps);
+}
+
+void MavlinkBase::set_last_vfr(qint64 last_vfr) {
+    m_last_vfr = last_vfr;
+    emit last_vfr_changed(m_last_vfr);
+}
+
+
+void MavlinkBase::setDataStreamRate(MAV_DATA_STREAM streamType, uint8_t hz) {
+
+    QSettings settings;
+
+    int mavlink_sysid = settings.value("mavlink_sysid", default_mavlink_sysid()).toInt();
+
+
+    mavlink_message_t msg;
+    msg.sysid = mavlink_sysid;
+    msg.compid = MAV_COMP_ID_MISSIONPLANNER;
+
+    /*
+     * This only sends the message to sysid 1 compid 1 because nothing else responds to this
+     * message anyway, iNav uses a fixed rate and so does betaflight
+     *
+     */
+    mavlink_msg_request_data_stream_pack(mavlink_sysid, MAV_COMP_ID_MISSIONPLANNER, &msg, 1, MAV_COMP_ID_AUTOPILOT1, streamType, hz, 1);
+
+    uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+    int len = mavlink_msg_to_send_buffer(buffer, &msg);
+
+    sendData((char*)buffer, len);
+}
+
+
 
 /*
  * This is the entry point for sending mavlink commands to any component, including flight
@@ -332,7 +395,7 @@ void MavlinkBase::set_last_heartbeat(qint64 last_heartbeat) {
  * signals to further handle the result.
  *
  */
-void MavlinkBase::send_command(MavlinkCommand command) {
+void MavlinkBase::sendCommand(MavlinkCommand command) {
     m_current_command.reset(new MavlinkCommand(command));
     m_command_state = MavlinkCommandStateSend;
 }
@@ -352,10 +415,10 @@ void MavlinkBase::commandStateLoop() {
 
             int mavlink_sysid = settings.value("mavlink_sysid", default_mavlink_sysid()).toInt();
 
-            if (m_current_command->m_is_long_cmd) {
-                mavlink_msg_command_long_pack(mavlink_sysid, MAV_COMP_ID_MISSIONPLANNER, &msg, targetSysID, targetCompID1, m_current_command->command_id, m_current_command->long_confirmation, m_current_command->long_param1, m_current_command->long_param2, m_current_command->long_param3, m_current_command->long_param4, m_current_command->long_param5, m_current_command->long_param6, m_current_command->long_param7);
+            if (m_current_command->m_command_type == MavlinkCommandTypeLong) {
+                mavlink_msg_command_long_pack(mavlink_sysid, MAV_COMP_ID_MISSIONPLANNER, &msg, targetSysID1, targetCompID1, m_current_command->command_id, m_current_command->long_confirmation, m_current_command->long_param1, m_current_command->long_param2, m_current_command->long_param3, m_current_command->long_param4, m_current_command->long_param5, m_current_command->long_param6, m_current_command->long_param7);
             } else {
-                mavlink_msg_command_int_pack(mavlink_sysid, MAV_COMP_ID_MISSIONPLANNER, &msg, targetSysID, targetCompID1, m_current_command->int_frame, m_current_command->command_id, m_current_command->int_current, m_current_command->int_autocontinue, m_current_command->int_param1, m_current_command->int_param2, m_current_command->int_param3, m_current_command->int_param4, m_current_command->int_param5, m_current_command->int_param6, m_current_command->int_param7);
+                mavlink_msg_command_int_pack(mavlink_sysid, MAV_COMP_ID_MISSIONPLANNER, &msg, targetSysID1, targetCompID1, m_current_command->int_frame, m_current_command->command_id, m_current_command->int_current, m_current_command->int_autocontinue, m_current_command->int_param1, m_current_command->int_param2, m_current_command->int_param3, m_current_command->int_param4, m_current_command->int_param5, m_current_command->int_param6, m_current_command->int_param7);
             }
             uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
             int len = mavlink_msg_to_send_buffer(buffer, &msg);
@@ -379,7 +442,7 @@ void MavlinkBase::commandStateLoop() {
                     return;
                 }
                 m_current_command->retry_count = m_current_command->retry_count + 1;
-                if (m_current_command->m_is_long_cmd) {
+                if (m_current_command->m_command_type == MavlinkCommandTypeLong) {
                     /* incremement the confirmation parameter according to the Mavlink command
                        documentation */
                     m_current_command->long_confirmation = m_current_command->long_confirmation + 1;

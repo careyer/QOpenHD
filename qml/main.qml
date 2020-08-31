@@ -1,6 +1,7 @@
 import QtQuick 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Controls.Styles 1.4
+import QtQuick.Controls.Material 2.12
 import QtQuick.Layouts 1.0
 import QtGraphicalEffects 1.12
 import Qt.labs.settings 1.0
@@ -9,6 +10,7 @@ import OpenHD 1.0
 
 import "./ui"
 import "./ui/widgets"
+import "./ui/elements"
 
 
 ApplicationWindow {
@@ -25,12 +27,6 @@ ApplicationWindow {
 
     property bool initialised: false
 
-    Component.onCompleted: {
-        if (!initialised) {
-            hudOverlayGrid.messageHUD.pushMessage("Initializing", 1)
-            initialised = true;
-        }
-    }
 
     /* this is not used but must stay right here, it forces qmlglsink to completely
        initialize the rendering system early. Without this, the next GstGLVideoItem
@@ -61,164 +57,82 @@ ApplicationWindow {
         }
     }
 
+    // we call back into QML from ManagedSettings to ensure that the live settings take effect
+    // immediately, QSettings doesn't seem capable of doing it from C++
+    Connections {
+        target: ManageSettings
+        function onSettingUpdated(key, value) {
+            settings.setValue(key, value);
+        }
+
+        function onNeedRestart() {
+            settings_panel.visible = false;
+            restartDialog.visible = true;
+        }
+    }
+
+    ColorPicker {
+        id: colorPicker
+        height: 264
+        width: 380
+        z: 15.0
+        anchors.centerIn: parent
+    }
+
+    RestartDialog {
+        id: restartDialog
+        height: 240
+        width: 400
+        z: 5.0
+        anchors.centerIn: parent
+    }
+
+    /*
+     * This is racing the QML Settings class, because it has a delay before it writes
+     * out the merged default+saved settings when it first loads. The delay in Settings
+     * has a purpose, but it makes it impossible to know when all of the settings have
+     * actually made it into the settings system, which makes it impossible for QSettings
+     * in c++ to read all of them.
+     */
+    Timer {
+        id: piSettingsTimer
+        running: false
+        interval: 1000
+        repeat: true
+
+        property int retries: 10
+
+        onTriggered: {
+            if (!ManageSettings.savePiSettings()) {
+                if (retries == 0) {
+                    /*
+                     * Exceeded the retry count, which means in a whole 10 seconds
+                     * Qt did not manage to get all of the default+changed settings written to
+                     * disk. This should never happen, that's a long time.
+                     */
+                    running = false;
+                    return;
+                }
+
+                retries = retries - 1;
+            }
+            // success
+            running = false;
+        }
+    }
+
     /*
      * Local app settings. Uses the "user defaults" system on Mac/iOS, the Registry on Windows,
      * and equivalent settings systems on Linux and Android
      *
      */
-    Settings {
+    AppSettings {
         id: settings
-        property double global_scale: 1.0
-
-        property int main_video_port: 5600
-        property int pip_video_port: 5601
-        property int lte_video_port: 8000
-        property int battery_cells: 3
-
-        property int mavlink_sysid: default_mavlink_sysid()
-
-        property bool show_pip_video: false
-        property double pip_video_opacity: 1
-
-        property bool enable_software_video_decoder: false
-        property bool enable_rtp: true
-        property bool enable_lte_video: false
-        property bool hide_watermark: false
-
-        property bool enable_speech: true
-        property bool enable_imperial: false
-        property bool enable_rc: false
-
-        property string color_shape: "white"
-        property string color_text: "white"
-        property string color_glow: "black"
-
-        property string bar_behavior: "red"
-
-        property double ground_power_opacity: 1
-        
-        property int log_level: 3
-
-        property bool show_downlink_rssi: true
-        property double downlink_rssi_opacity: 1
-        property bool downlink_rssi_showall: false
-
-        property bool show_uplink_rssi: true
-        property double uplink_rssi_opacity: 1
-
-        property bool show_bitrate: true
-        property double bitrate_opacity: 1
-        property bool bitrate_showall: false
-
-        property bool show_air_battery: true
-        property double air_battery_opacity: 1
-        property bool air_battery_showall: false
-
-        property bool show_gps: true
-        property double gps_opacity: 1
-
-        property bool show_home_distance: true
-        property double home_distance_opacity: 1
-
-        property bool show_flight_timer: true
-        property double flight_timer_opacity: 1
-
-        property bool show_flight_mode: true
-        property double flight_mode_opacity: 1
-
-        property bool show_flight_distance: true
-        property double distance_opacity: 1
-
-        property bool show_flight_mah: true
-        property double mah_opacity: 1
-
-        property bool show_ground_status: true
-        property double ground_status_opacity: 1
-
-        property bool show_air_status: true
-        property double air_status_opacity: 1
-
-        property bool show_message_hud: true
-        property double message_hud_opacity: 1
-
-        property bool show_horizon: true
-        property bool horizon_invert_pitch: false
-        property bool horizon_invert_roll: false
-        property int horizon_size: 250
-        property double horizon_opacity: 1
-        property int horizon_ladder_spacing: 10
-        property bool show_horizon_ladder: true
-
-        property bool show_fpv: true
-        property bool fpv_dynamic: true
-        property int fpv_sensitivity: 5
-        property double fpv_opacity: 1
-
-        property bool show_speed: true
-        property bool speed_airspeed_gps: false
-        property double speed_opacity: 1
-        property double speed_size: 1
-        property bool show_speed_ladder: true
-        property int speed_range: 100
-        property int speed_minimum: 0
-
-        property bool show_heading: true
-        property bool heading_inav: false
-        property double heading_opacity: 1
-        property double heading_size: 1
-        property bool show_heading_ladder: true
-        property bool heading_ladder_text: true //true:letters/false:numbers
-
-        property bool show_altitude: true
-        property bool altitude_rel_msl: false
-        property double altitude_opacity: 1
-        property double altitude_size: 1
-        property bool show_altitude_ladder: true
-        property int altitude_range: 100
-
-        property bool show_altitude_second: true
-        property bool altitude_second_msl_rel: false
-        property double altitude_second_opacity: 1
-
-        property bool show_arrow: true
-        property bool arrow_invert: false
-        property double arrow_opacity: 1
-
-        property bool show_map: false
-
-        property double map_opacity: 1
-        property bool map_orientation: false
-        property bool map_shape_circle: false
-
-        property int map_zoom: 18
-
-        property bool show_throttle: true
-        property double throttle_opacity: 1
-
-        property bool show_control: false
-        property double control_opacity: 1
-        property bool control_version: true
-
-        property bool show_gpio: false
-        property int selected_map_provider: 0
-        property int selected_map_variant: 0
-
-        property bool show_vibration: false
-        property double vibration_opacity: 1
-
-        property bool show_vsi: true
-        property double vsi_opacity: 1
-        property int vsi_max: 20
-
-        property bool show_wind: false
-        property double wind_opacity: 1
-        property bool wind_plane_copter: true
-        property bool wind_arrow_circle: true
-        //tumbler value had to be split into two values..
-        property double wind_tumbler_decimal: 5
-        property double wind_tumbler_tens: 13
-        property double wind_max_quad_speed: wind_tumbler_tens+(wind_tumbler_decimal*.1)
-
+        Component.onCompleted: {
+            if (IsRaspPi) {
+                piSettingsTimer.start();
+            }
+        }
     }
 
 
@@ -242,12 +156,23 @@ ApplicationWindow {
         id: vectorTelemetry
     }
 
+    MarkerModel {
+        id: markerModel
+    }
+
+    BlackBoxModel {
+        id: blackBoxModel
+    }
+
     Loader {
         anchors.fill: parent
         z: 1.0
         source: {
             if (EnableGStreamer && EnableMainVideo) {
                 return "MainVideoGStreamer.qml";
+            }
+            if (IsAndroid && EnableVideoRender && EnableMainVideo) {
+                return "MainVideoRender.qml";
             }
             if (IsRaspPi && EnableVideoRender && EnableMainVideo) {
                 return "MainVideoRender.qml";
@@ -265,7 +190,7 @@ ApplicationWindow {
 
     Connections {
         target: OpenHD
-        onMessageReceived: {
+        function onMessageReceived(message, level) {
             if (level >= settings.log_level) {
                 hudOverlayGrid.messageHUD.pushMessage(message, level)
             }
@@ -274,29 +199,91 @@ ApplicationWindow {
 
     Connections {
         target: LocalMessage
-        onMessageReceived: {
+        function onMessageReceived(message, level) {
             if (level >= settings.log_level) {
                 hudOverlayGrid.messageHUD.pushMessage(message, level)
             }
         }
     }
 
+    Connections {
+        target: GroundStatusMicroservice
+        function onStatusMessage(sysid, message, level, timestamp) {
+            if (level >= settings.log_level) {
+                hudOverlayGrid.messageHUD.pushMessage(message, level)
+            }
+        }
+    }
+
+    Connections {
+        target: AirStatusMicroservice
+        function onStatusMessage(sysid, message, level, timestamp) {
+            if (level >= settings.log_level) {
+                hudOverlayGrid.messageHUD.pushMessage(message, level)
+            }
+        }
+    }
+
+
     // UI areas
 
     UpperOverlayBar {
+        visible: !settings.stereo_enable
         id: upperOverlayBar
-        onSettingsButtonClicked: {
-            settings_panel.openSettings();
-        }
     }
 
     HUDOverlayGrid {
         id: hudOverlayGrid
         anchors.fill: parent
         z: 3.0
+        onSettingsButtonClicked: {
+            settings_panel.openSettings();
+        }
+
+        transform: Scale {
+            origin.x: 0
+            origin.y: hudOverlayGrid.height / 2
+            xScale: settings.stereo_enable ? 0.5 : 1.0
+            yScale: settings.stereo_enable ? 0.5 : 1.0
+        }
+
+        layer.enabled: true
+    }
+
+
+    Rectangle {
+        id: hudOverlayGridClone
+        anchors.right: parent.right
+        width: parent.width / 2
+        height: parent.height / 2
+        anchors.verticalCenter: settings.stereo_enable ? parent.verticalCenter : undefined
+        visible: settings.stereo_enable
+        z: 3.0
+        layer.enabled: settings.stereo_enable
+        layer.samplerName: "hudOverlayGrid"
+        layer.effect: ShaderEffect {
+            id: shader
+            property variant cloneSource : hudOverlayGrid
+            fragmentShader: "
+                varying highp vec2 qt_TexCoord0;
+                uniform highp sampler2D cloneSource;
+                void main(void) {
+                    gl_FragColor =  texture2D(cloneSource, qt_TexCoord0);
+                }
+            "
+        }
+    }
+
+    OSDCustomizer {
+        id: osdCustomizer
+
+        anchors.centerIn: parent
+        visible: false
+        z: 5.0
     }
 
     LowerOverlayBar {
+        visible: !settings.stereo_enable
         id: lowerOverlayBar
     }
 
@@ -307,6 +294,13 @@ ApplicationWindow {
         onLocalMessage: {
             hudOverlayGrid.messageHUD.pushMessage(message, level)
         }
+
+        onSettingsClosed: {
+            if (settings.stereo_enable) {
+                stereoHelpMessage.visible = true
+                stereoHelpTimer.start()
+            }
+        }
     }
 
     Shortcut {
@@ -314,6 +308,67 @@ ApplicationWindow {
         onActivated: {
             OpenHDPi.activate_console()
             OpenHDPi.stop_app()
+        }
+    }
+
+    Item {
+        anchors.fill: parent
+        z: settings.stereo_enable ? 10.0 : 1.0
+
+        TapHandler {
+            enabled: settings_panel.visible == false
+            acceptedButtons: Qt.AllButtons
+            onTapped: {
+                if (tapCount == 3) {
+                    settings.stereo_enable = !settings.stereo_enable
+                    if (settings.stereo_enable) {
+                        stereoHelpMessage.visible = true
+                        stereoHelpTimer.start()
+                    }
+
+                    if (IsRaspPi) {
+                        piSettingsTimer.start();
+                    }
+                }
+            }
+            onLongPressed: {
+                if (settings.stereo_enable ) {
+                    return;
+                }
+
+                osdCustomizer.visible = true
+            }
+
+            grabPermissions: PointerHandler.CanTakeOverFromAnything
+        }
+    }
+
+    Text {
+        id: stereoHelpMessage
+        z: 2.0
+        color: "#89ffffff"
+        visible: false
+        font.pixelSize: 18
+        font.family: settings.font_text
+        text: qsTr("Rapidly tap between widgets to enable/disable stereo")
+        horizontalAlignment: Text.AlignHCenter
+        height: 24
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.topMargin: 64
+        style: Text.Outline
+        styleColor: "black"
+    }
+
+    Timer {
+        id: stereoHelpTimer
+        running: false
+        interval: 4000
+        repeat: false
+
+        onTriggered: {
+            stereoHelpMessage.visible = false;
         }
     }
 }
